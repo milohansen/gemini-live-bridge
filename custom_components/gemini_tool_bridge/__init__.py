@@ -177,11 +177,13 @@ class GeminiEntitiesView(http_helpers.HomeAssistantView):
 
 
             devices = {}
+            non_device_entities = []
 
             for state in all_states:
                 if not ee.async_should_expose(assistant, state.entity_id):
                     continue
                 entity_entry = ent_reg.async_get(state.entity_id)
+
                 if entity_entry and entity_entry.device_id:
                     if entity_entry.device_id not in devices:
                         devices[entity_entry.device_id] = { "device": None, "entities": [] }
@@ -194,10 +196,12 @@ class GeminiEntitiesView(http_helpers.HomeAssistantView):
 
                         if device_entry:
                             devices[device_entry.id]["device"] = device_entry
+                else:
+                    non_device_entities.append(state)
 
             # _LOGGER.warning(f"Fetched {len(exposed_devices)} devices from LLM API for assistant '{assistant}'")
 
-            return self.json({"success": True, "entities": exposed_entities, "devices": devices})
+            return self.json({"success": True, "entities": exposed_entities, "devices": devices, "non_device_entities": non_device_entities})
 
         except Exception as e:
             _LOGGER.error(f"Error fetching entities: {e}")
