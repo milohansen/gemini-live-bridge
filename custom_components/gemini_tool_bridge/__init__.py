@@ -164,13 +164,14 @@ class GeminiEntitiesView(http_helpers.HomeAssistantView):
 
         try:
             ee = ha_exposed_entities.ExposedEntities(hass)
+            data = await ee._async_load_data()
             # ee._assistants
             # ee.entities
             exposed_entities = llm._get_exposed_entities(hass, assistant)
 
             _LOGGER.warning(f"Fetched {len(exposed_entities)} entities from LLM API for assistant '{assistant}'")
 
-            return self.json({"success": True, "entities": exposed_entities, "ee": ee.entities, "assistants": ee._assistants})
+            return self.json({"success": True, "entities": exposed_entities, "data": data, "assistants": ee._assistants})
 
         except Exception as e:
             _LOGGER.error(f"Error fetching entities: {e}")
