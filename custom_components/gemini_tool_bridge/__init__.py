@@ -165,6 +165,7 @@ class GeminiEntitiesView(http_helpers.HomeAssistantView):
         try:
             all_states = hass.states.async_all()
             ee = ha_exposed_entities.ExposedEntities(hass)
+            await ee._async_load_data()
             # ee._assistants
             # ee.entities
             exposed_entities = llm._get_exposed_entities(hass, assistant)
