@@ -1,7 +1,7 @@
 import logging
 from aiohttp import web, WSMsgType
 
-from .tools import fetch_tools_via_http
+from tools import fetch_tools_via_http
 
 logger = logging.getLogger(__name__)
 
@@ -58,6 +58,16 @@ INDEX_HTML = """
         </div>
     </div>
 
+    <div class="section">
+        <h3>Available Tools</h3>
+        <p>Fetch the list of tools currently available to Gemini.</p>
+        <button onclick="fetchTools()">List Tools</button>
+        <div style="text-align: left; margin-top: 15px;">
+            <strong>Result:</strong>
+            <pre id="toolsOutput" style="background: #f4f4f4; padding: 10px; border-radius: 4px; min-height: 40px;">...</pre>
+        </div>
+    </div>
+
     <script>
         // --- Tool Testing Logic ---
         async function executeTool() {
@@ -82,6 +92,21 @@ INDEX_HTML = """
                 
                 const result = await response.text();
                 output.innerText = result;
+            } catch (err) {
+                output.innerText = "Error: " + err.message;
+            }
+        }
+
+        async function fetchTools() {
+            const output = document.getElementById('toolsOutput');
+            output.innerText = "Fetching...";
+            try {
+                const response = await fetch('/tools');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+                output.innerText = JSON.stringify(data, null, 2);
             } catch (err) {
                 output.innerText = "Error: " + err.message;
             }
@@ -230,6 +255,6 @@ class WebHandler:
         """List all available tools."""
         try:
             tools = await fetch_tools_via_http()
-            return web.Response(text=str(tools))
+            return web.json_response(tools)
         except Exception as e:
             return web.Response(text=f"Error: {e}", status=500)

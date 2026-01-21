@@ -40,6 +40,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+
 class VADWrapper:
     def __init__(self):
         if not os.path.exists(VAD_MODEL_PATH):
@@ -243,11 +244,7 @@ class AudioProxy:
             response_modalities=["AUDIO"],
             tools=get_tools(),
             system_instruction=types.Content(
-                parts=[
-                    types.Part.from_text(
-                        text=full_system_instruction
-                    )
-                ],
+                parts=[types.Part.from_text(text=full_system_instruction)],
                 role="user",
             ),
             # proactivity=types.ProactivityConfig(proactive_audio=True),
@@ -316,29 +313,37 @@ class AudioProxy:
 
                         for call in function_calls:
                             # Execute the tool via Home Assistant
-                            result = await self.tool_handler.handle_tool_call(call.name, call.args)
-                            
+                            result = await self.tool_handler.handle_tool_call(
+                                call.name, call.args
+                            )
+
                             # Create response object
                             function_responses.append(
                                 types.FunctionResponse(
                                     name=call.name,
                                     id=call.id,
-                                    response={"result": result}
+                                    response={"result": result},
                                 )
                             )
 
                         # Send responses back to Gemini
                         if function_responses:
-                            await session.send_tool_response(function_responses=function_responses)
+                            await session.send_tool_response(
+                                function_responses=function_responses
+                            )
 
                     server_content = response.server_content
                     if not server_content:
                         continue
-                    
+
                     if server_content.output_transcription:
-                        logger.info(f"Transcript (Output): {server_content.output_transcription.text}")
+                        logger.info(
+                            f"Transcript (Output): {server_content.output_transcription.text}"
+                        )
                     if server_content.input_transcription:
-                        logger.info(f"Transcript (Input): {server_content.input_transcription.text}")
+                        logger.info(
+                            f"Transcript (Input): {server_content.input_transcription.text}"
+                        )
 
                     if server_content.model_turn:
                         for part in response.server_content.model_turn.parts:
@@ -375,11 +380,14 @@ class AudioProxy:
 
         # Setup Web Server
         app = web.Application()
-        app.add_routes([
-            web.get("/", self.web_handler.index_handler),
-            web.get("/ws", self.web_handler.websocket_handler),
-            web.post("/tool", self.web_handler.tool_test_handler)
-        ])
+        app.add_routes(
+            [
+                web.get("/", self.web_handler.index_handler),
+                web.get("/ws", self.web_handler.websocket_handler),
+                web.post("/tool", self.web_handler.tool_test_handler),
+                web.get("/tools", self.web_handler.tool_list_handler),
+            ]
+        )
         runner = web.AppRunner(app)
         await runner.setup()
         site = web.TCPSite(runner, "0.0.0.0", UDP_PORT)
