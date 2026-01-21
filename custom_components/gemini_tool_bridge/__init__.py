@@ -11,6 +11,7 @@ from homeassistant.helpers import llm
 
 # from homeassistant.helpers import config_validation as cv
 from homeassistant.components.google_generative_ai_conversation import conversation
+from homeassistant.components.homeassistant import exposed_entities as ha_exposed_entities
 
 from .const import DOMAIN
 
@@ -162,11 +163,14 @@ class GeminiEntitiesView(http_helpers.HomeAssistantView):
         assistant = await request.text() or "assist"
 
         try:
+            ee = ha_exposed_entities.ExposedEntities(hass)
+            # ee._assistants
+            # ee.entities
             exposed_entities = llm._get_exposed_entities(hass, assistant)
 
             _LOGGER.warning(f"Fetched {len(exposed_entities)} entities from LLM API for assistant '{assistant}'")
 
-            return self.json({"success": True, "entities": exposed_entities})
+            return self.json({"success": True, "entities": exposed_entities, "ee": ee.entities, "assistants": ee._assistants})
 
         except Exception as e:
             _LOGGER.error(f"Error fetching entities: {e}")
