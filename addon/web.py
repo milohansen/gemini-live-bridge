@@ -1,7 +1,7 @@
 import logging
 from aiohttp import web, WSMsgType
 
-from tools import fetch_tools_via_http
+from tools import fetch_entities_via_http, fetch_tools_via_http
 
 logger = logging.getLogger(__name__)
 
@@ -256,5 +256,13 @@ class WebHandler:
         try:
             tools = await fetch_tools_via_http()
             return web.json_response(tools)
+        except Exception as e:
+            return web.Response(text=f"Error: {e}", status=500)
+        
+    async def entity_list_handler(self, request):
+        """List all available entities."""
+        try:
+            entities = await fetch_entities_via_http()
+            return web.json_response(entities)
         except Exception as e:
             return web.Response(text=f"Error: {e}", status=500)

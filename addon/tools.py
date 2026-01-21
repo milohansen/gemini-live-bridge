@@ -274,6 +274,41 @@ async def fetch_tools_via_http():
 
     return [] # Return empty list on failure
 
+async def fetch_entities_via_http(assistant=None):
+    """Fetch entities from the custom component HTTP endpoint."""
+    url = f"{HA_URL}/gemini_live/entities" # This matches the view URL defined above (note: HA_URL usually ends in /api)
+    
+    # NOTE: HA_URL in your entities.py is "http://supervisor/core/api"
+    # The view registers at "/api/gemini_live/entities" relative to root.
+    # So the full URL is likely "http://supervisor/core/api/gemini_live/entities"
+    # We need to construct it carefully.
+    
+    # Correct URL construction for Supervisor API usage:
+    # full_url = "http://supervisor/core/api/gemini_live/entities"
+
+    headers = {
+        "Authorization": f"Bearer {HA_TOKEN}",
+        # "Content-Type": "application/json",
+        "Content-Type": "text/plain",
+    }
+
+    try:
+        async with ClientSession() as session:
+            async with session.post(url, headers=headers, data=assistant) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    if data.get("success"):
+                        logger.info(f"Loaded {len(data['entities'])} entities from Home Assistant HTTP API")
+                        return data["entities"]
+                    else:
+                        logger.error(f"API Error: {data.get('error')}")
+                else:
+                    logger.error(f"Failed to fetch entities: {resp.status} {await resp.text()}")
+    except Exception as e:
+        logger.error(f"HTTP Request failed: {e}")
+
+    return [] # Return empty list on failure
+
 def get_tools():
     return [
         types.Tool(
