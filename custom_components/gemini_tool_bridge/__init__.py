@@ -160,18 +160,20 @@ class GeminiEntitiesView(http_helpers.HomeAssistantView):
     async def post(self, request: Request):
         """Handle POST requests to fetch entities."""
         hass: HomeAssistant = request.app["hass"]
-        assistant = await request.text() or "assist"
+        assistant = await request.text() or "conversation"
 
         try:
+            all_states = hass.states.async_all()
             ee = ha_exposed_entities.ExposedEntities(hass)
-            data = await ee._async_load_data()
             # ee._assistants
             # ee.entities
             exposed_entities = llm._get_exposed_entities(hass, assistant)
 
-            _LOGGER.warning(f"Fetched {len(exposed_entities)} entities from LLM API for assistant '{assistant}'")
+            states = [state for state in all_states if ee.async_should_expose("conversation", state.entity_id)]
 
-            return self.json({"success": True, "entities": exposed_entities, "data": data, "states": hass.states.async_all()})
+            _LOGGER.warning(f"Fetched {len(states)} entities from LLM API for assistant '{assistant}'")
+
+            return self.json({"success": True, "entities": exposed_entities, "states": states})
 
         except Exception as e:
             _LOGGER.error(f"Error fetching entities: {e}")
