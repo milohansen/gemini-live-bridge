@@ -26,9 +26,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     
     # Register the HTTP View (The API endpoint)
     # We check if it's already registered to avoid errors on reload
-    view = GeminiToolsView()
+    tools_view = GeminiToolsView()
+    entities_view = GeminiEntitiesView()
     try:
-        hass.http.register_view(view)
+        hass.http.register_view(tools_view)
+        hass.http.register_view(entities_view)
     except ValueError:
         pass # Already registered
 
@@ -95,15 +97,14 @@ class GeminiToolsView(http_helpers.HomeAssistantView):
             # We assume the default LLM API for Home Assistant
             # llm_apis = llm.async_get_apis(hass)
 
-            # exposed_entities = llm._get_exposed_entities(hass, "assist")
-            # llm_api = await llm.async_get_api(hass, "homeassistant", llm_context)
+            exposed_entities = llm._get_exposed_entities(hass, "assist")
             api = llm.AssistAPI(hass)
 
             llm_api = await api.async_get_api_instance(llm_context)
             
             # 2. Get the tools (functions) exposed to this API
             tools = llm_api.tools
-            
+
             _LOGGER.warning(f"Fetched {len(tools)} tools from LLM API")
             
             # 3. Convert to Gemini's expected JSON Schema
@@ -122,4 +123,28 @@ class GeminiToolsView(http_helpers.HomeAssistantView):
             
         except Exception as e:
             _LOGGER.error(f"Error fetching tools: {e}")
+            return self.json({"success": False, "error": str(e)})
+
+class GeminiEntitiesView(http_helpers.HomeAssistantView):
+    """A simple view to expose HA's LLM tools via HTTP."""
+    
+    url = "/api/gemini_live/entities"
+    name = "api:gemini_live:entities"
+    requires_auth = True  # Requires the Supervisor Token or Long-Lived Token
+
+    async def get(self, request):
+        """Handle GET requests to fetch entities."""
+        hass = request.app["hass"]
+
+        _LOGGER.warning("Received request for Gemini entities")
+        
+        try:
+            exposed_entities = llm._get_exposed_entities(hass, "assist")
+
+            _LOGGER.warning(f"Fetched {len(exposed_entities)} entities from LLM API")
+
+            return self.json({"success": True, "entities": exposed_entities})
+            
+        except Exception as e:
+            _LOGGER.error(f"Error fetching entities: {e}")
             return self.json({"success": False, "error": str(e)})
