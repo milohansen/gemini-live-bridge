@@ -1,8 +1,10 @@
 """The Gemini Tool Bridge integration."""
 
 import logging
+
 # import voluptuous as vol
 from aiohttp.web import Request
+
 # from voluptuous_openapi import convert
 from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
@@ -12,11 +14,14 @@ from homeassistant.helpers import device_registry as dr, entity_registry as er
 
 # from homeassistant.helpers import config_validation as cv
 from homeassistant.components.google_generative_ai_conversation import conversation
-from homeassistant.components.homeassistant import exposed_entities as ha_exposed_entities
+from homeassistant.components.homeassistant import (
+    exposed_entities as ha_exposed_entities,
+)
 
 from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
+
 
 async def async_setup(hass: HomeAssistant, config: dict):
     """Set up the Gemini Tool Bridge component."""
@@ -175,7 +180,6 @@ class GeminiEntitiesView(http_helpers.HomeAssistantView):
 
             # states = [state for state in all_states if ee.async_should_expose("conversation", state.entity_id)]
 
-
             devices = {}
             non_device_entities = []
 
@@ -186,22 +190,32 @@ class GeminiEntitiesView(http_helpers.HomeAssistantView):
 
                 if entity_entry and entity_entry.device_id:
                     if entity_entry.device_id not in devices:
-                        devices[entity_entry.device_id] = { "device": None, "entities": [] }
+                        devices[entity_entry.device_id] = {
+                            "device": None,
+                            "entities": [],
+                        }
 
                     devices[entity_entry.device_id]["entities"].append(state)
-                    
+
                     if devices[entity_entry.device_id]["device"] is None:
                         # Look up the device in the Device Registry using the device_id
                         device_entry = dev_reg.async_get(entity_entry.device_id)
 
                         if device_entry:
-                            devices[device_entry.id]["device"] = device_entry
+                            devices[device_entry.id]["device"] = device_entry.dict_repr
                 else:
                     non_device_entities.append(state)
 
             # _LOGGER.warning(f"Fetched {len(exposed_devices)} devices from LLM API for assistant '{assistant}'")
 
-            return self.json({"success": True, "entities": exposed_entities, "devices": devices, "non_device_entities": non_device_entities})
+            return self.json(
+                {
+                    "success": True,
+                    "entities": exposed_entities,
+                    "devices": devices,
+                    "non_device_entities": non_device_entities,
+                }
+            )
 
         except Exception as e:
             _LOGGER.error(f"Error fetching entities: {e}")
