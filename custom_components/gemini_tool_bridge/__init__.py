@@ -13,6 +13,7 @@ _LOGGER = logging.getLogger(__name__)
 
 async def async_setup(hass: HomeAssistant, config: dict):
     """Set up the Gemini Tool Bridge component."""
+    _LOGGER.info("Setting up Gemini Tool Bridge component")
     
     # Register the Custom HTTP View
     hass.http.register_view(GeminiToolsView())
