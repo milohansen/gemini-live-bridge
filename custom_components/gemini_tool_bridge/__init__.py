@@ -45,6 +45,41 @@ class GeminiToolsView(http_helpers.HomeAssistantView):
     name = "api:gemini_live:tools"
     requires_auth = True  # Requires the Supervisor Token or Long-Lived Token
 
+    def _get_llm_context(self, hass):
+        """Create LLMContext safely handling different HA versions."""
+        # Try the most recent signature (Platform, Context, Prompt, Language, Assistant, DeviceID)
+        try:
+            return llm.LLMContext(
+                platform=DOMAIN,
+                context=None,
+                language="en",
+                assistant="conversation",
+                device_id=None,
+            ) # type: ignore
+        except TypeError:
+            pass
+
+        # Fallback to older signature (minus Device ID)
+        try:
+            return llm.LLMContext(
+                platform=DOMAIN,
+                context=None,
+                user_prompt=None,
+                language="en",
+                assistant="conversation",
+                device_id=None,
+            )
+        except TypeError:
+            pass
+            
+        # Fallback to very old/minimal signature
+        return llm.LLMContext(
+            platform=DOMAIN,
+            context=None,
+            user_prompt=None,
+            language="en",
+        ) # type: ignore
+
     async def get(self, request):
         """Handle GET requests to fetch tools."""
         hass = request.app["hass"]
@@ -52,12 +87,12 @@ class GeminiToolsView(http_helpers.HomeAssistantView):
         try:
             # 1. Get the LLM API for the default 'Assist' pipeline
             # This handles the logic of which entities are 'exposed' to Voice Assistants
-            llm_context = llm.LLMContext("homeassistant", None, None, None, "conversation", "device_id")
+            llm_context = self._get_llm_context(hass)
             # Get the LLM API instance (handles entity exposure logic)
             # We assume the default LLM API for Home Assistant
-            llm_apis = llm.async_get_apis(hass)
+            # llm_apis = llm.async_get_apis(hass)
 
-            exposed_entities = llm._get_exposed_entities(hass, "homeassistant")
+            # exposed_entities = llm._get_exposed_entities(hass, "homeassistant")
             llm_api = await llm.async_get_api(hass, "homeassistant", llm_context)
             
             # 2. Get the tools (functions) exposed to this API
