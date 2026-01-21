@@ -33,6 +33,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
     return True
 
+# 3. This is called when you remove the integration
+async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
+    """Unload a config entry."""
+    return True
+
 class GeminiToolsView(http_helpers.HomeAssistantView):
     """A simple view to expose HA's LLM tools via HTTP."""
     
