@@ -164,7 +164,7 @@ class GeminiEntitiesView(http_helpers.HomeAssistantView):
         try:
             exposed_entities = llm._get_exposed_entities(hass, assistant)
 
-            # _LOGGER.warning(f"Fetched {len(exposed_entities)} entities from LLM API")
+            _LOGGER.warning(f"Fetched {len(exposed_entities)} entities from LLM API for assistant '{assistant}'")
 
             return self.json({"success": True, "entities": exposed_entities})
 
