@@ -45,7 +45,7 @@ class GeminiToolsView(http_helpers.HomeAssistantView):
     name = "api:gemini_live:tools"
     requires_auth = True  # Requires the Supervisor Token or Long-Lived Token
 
-    def _get_llm_context(self, hass):
+    def _get_llm_context(self):
         """Create LLMContext safely handling different HA versions."""
         # Try the most recent signature (Platform, Context, Prompt, Language, Assistant, DeviceID)
         try:
@@ -83,20 +83,26 @@ class GeminiToolsView(http_helpers.HomeAssistantView):
     async def get(self, request):
         """Handle GET requests to fetch tools."""
         hass = request.app["hass"]
+
+        _LOGGER.info("Received request for Gemini tools")
         
         try:
             # 1. Get the LLM API for the default 'Assist' pipeline
             # This handles the logic of which entities are 'exposed' to Voice Assistants
-            llm_context = self._get_llm_context(hass)
+            llm_context = self._get_llm_context()
             # Get the LLM API instance (handles entity exposure logic)
             # We assume the default LLM API for Home Assistant
             # llm_apis = llm.async_get_apis(hass)
 
-            # exposed_entities = llm._get_exposed_entities(hass, "homeassistant")
-            llm_api = await llm.async_get_api(hass, "homeassistant", llm_context)
+            # exposed_entities = llm._get_exposed_entities(hass, "assist")
+            # llm_api = await llm.async_get_api(hass, "homeassistant", llm_context)
+            api = llm.AssistAPI(hass)
+
+            llm_api = await api.async_get_api_instance(llm_context)
             
             # 2. Get the tools (functions) exposed to this API
             tools = llm_api.tools
+            _LOGGER.info(f"Fetched {len(tools)} tools from LLM API")
             
             # 3. Convert to Gemini's expected JSON Schema
             gemini_tools = []
