@@ -240,6 +240,40 @@ class ToolHandler:
             summary.append(f"{s['entity_id']}: {s['state']}")
         return "\n".join(summary[:100]) # Limit to 100 to avoid token limits
 
+async def fetch_tools_via_http():
+    """Fetch tools from the custom component HTTP endpoint."""
+    url = f"{HA_URL}/gemini_live/tools" # This matches the view URL defined above (note: HA_URL usually ends in /api)
+    
+    # NOTE: HA_URL in your tools.py is "http://supervisor/core/api"
+    # The view registers at "/api/gemini_live/tools" relative to root.
+    # So the full URL is likely "http://supervisor/core/api/gemini_live/tools"
+    # We need to construct it carefully.
+    
+    # Correct URL construction for Supervisor API usage:
+    # full_url = "http://supervisor/core/api/gemini_live/tools"
+
+    headers = {
+        "Authorization": f"Bearer {HA_TOKEN}",
+        "Content-Type": "application/json",
+    }
+
+    try:
+        async with ClientSession() as session:
+            async with session.get(url, headers=headers) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    if data.get("success"):
+                        logger.info(f"Loaded {len(data['tools'])} tools from Home Assistant HTTP API")
+                        return data["tools"]
+                    else:
+                        logger.error(f"API Error: {data.get('error')}")
+                else:
+                    logger.error(f"Failed to fetch tools: {resp.status} {await resp.text()}")
+    except Exception as e:
+        logger.error(f"HTTP Request failed: {e}")
+
+    return [] # Return empty list on failure
+
 def get_tools():
     return [
         types.Tool(
