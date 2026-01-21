@@ -299,7 +299,8 @@ async def fetch_entities_via_http(assistant=None):
                     data = await resp.json()
                     if data.get("success"):
                         logger.info(f"Loaded {len(data['entities'])} entities from Home Assistant HTTP API")
-                        return data["entities"]
+                        return data
+                        # return data["entities"]
                     else:
                         logger.error(f"API Error: {data.get('error')}")
                 else:
