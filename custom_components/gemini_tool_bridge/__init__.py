@@ -1,6 +1,7 @@
 """The Gemini Tool Bridge integration."""
 import logging
 import voluptuous as vol
+from voluptuous_openapi import convert
 from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers import http as http_helpers
@@ -84,7 +85,7 @@ class GeminiToolsView(http_helpers.HomeAssistantView):
         """Handle GET requests to fetch tools."""
         hass = request.app["hass"]
 
-        _LOGGER.info("Received request for Gemini tools")
+        _LOGGER.warning("Received request for Gemini tools")
         
         try:
             # 1. Get the LLM API for the default 'Assist' pipeline
@@ -102,26 +103,18 @@ class GeminiToolsView(http_helpers.HomeAssistantView):
             
             # 2. Get the tools (functions) exposed to this API
             tools = llm_api.tools
-            _LOGGER.info(f"Fetched {len(tools)} tools from LLM API")
+            
+            _LOGGER.warning(f"Fetched {len(tools)} tools from LLM API")
             
             # 3. Convert to Gemini's expected JSON Schema
             gemini_tools = []
             
             for tool in tools:
-                try:
-                    schema = tool.parameters.schema
-                except Exception:
-                    # Fallback for tools that might not implement parameters() strictly
-                    schema = {}
 
                 tool_def = {
                     "name": tool.name,
                     "description": tool.description,
-                    "parameters": {
-                        "type": "OBJECT",
-                        "properties": schema.get("properties", {}),
-                        "required": schema.get("required", []),
-                    }
+                    "parameters": convert(tool.parameters, custom_serializer=llm_api.custom_serializer),
                 }
                 gemini_tools.append(tool_def)
 
