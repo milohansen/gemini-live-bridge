@@ -1,6 +1,8 @@
 import logging
 from aiohttp import web, WSMsgType
 
+from .tools import fetch_tools_via_http
+
 logger = logging.getLogger(__name__)
 
 # Move the HTML template here to keep the main file clean
@@ -221,5 +223,13 @@ class WebHandler:
             args = data.get("args", {})
             result = await self.proxy.tool_handler.handle_tool_call(name, args)
             return web.Response(text=str(result))
+        except Exception as e:
+            return web.Response(text=f"Error: {e}", status=500)
+        
+    async def tool_list_handler(self, request):
+        """List all available tools."""
+        try:
+            tools = await fetch_tools_via_http()
+            return web.Response(text=str(tools))
         except Exception as e:
             return web.Response(text=f"Error: {e}", status=500)
