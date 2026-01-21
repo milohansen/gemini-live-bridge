@@ -1,4 +1,5 @@
 import datetime
+from device_context import generate_device_context
 from google.genai import types
 import logging
 import os
@@ -299,8 +300,9 @@ async def fetch_entities_via_http(assistant=None):
                     data = await resp.json()
                     if data.get("success"):
                         logger.info(f"Loaded {len(data['entities'])} entities from Home Assistant HTTP API")
-                        return data
+                        # return data
                         # return data["entities"]
+                        return generate_device_context(data)
                     else:
                         logger.error(f"API Error: {data.get('error')}")
                 else:

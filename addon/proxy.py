@@ -7,7 +7,7 @@ from scipy import signal as scipy_signal
 from google import genai
 from google.genai import types
 import onnxruntime
-from aiohttp import web, WSMsgType
+from aiohttp import web
 
 from tools import get_tools, ToolHandler, HomeAssistantClient
 from device_context import STATIC_DEVICE_CONTEXT
