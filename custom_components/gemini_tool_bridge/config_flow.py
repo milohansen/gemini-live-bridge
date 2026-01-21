@@ -5,7 +5,7 @@ from .const import DOMAIN
 class GeminiLiveConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     VERSION = 1
 
-    async def async_step_user(self, user_input=None):
+    async def async_step_user(self, user_input=None) -> config_entries.ConfigFlowResult:
         if user_input is not None:
             return self.async_create_entry(title="Gemini Bridge", data=user_input)
 

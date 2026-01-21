@@ -1,8 +1,8 @@
 """The Gemini Tool Bridge integration."""
 import logging
 import voluptuous as vol
-from homeassistant.core import HomeAssistant, ServiceCall
-from homeassistant.components import websocket_api, http
+from homeassistant.core import HomeAssistant
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers import http as http_helpers
 from homeassistant.helpers import llm
 from homeassistant.helpers import config_validation as cv
@@ -16,7 +16,21 @@ async def async_setup(hass: HomeAssistant, config: dict):
     _LOGGER.info("Setting up Gemini Tool Bridge component")
     
     # Register the Custom HTTP View
-    hass.http.register_view(GeminiToolsView())
+    # hass.http.register_view(GeminiToolsView())
+    return True
+
+# 2. This is called when you click "Add Integration" in the UI
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
+    """Set up Gemini Tool Bridge from a config entry."""
+    
+    # Register the HTTP View (The API endpoint)
+    # We check if it's already registered to avoid errors on reload
+    view = GeminiToolsView()
+    try:
+        hass.http.register_view(view)
+    except ValueError:
+        pass # Already registered
+
     return True
 
 class GeminiToolsView(http_helpers.HomeAssistantView):
