@@ -8,6 +8,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers import http as http_helpers
 from homeassistant.helpers import llm
+from homeassistant.helpers import device_registry as dr, entity_registry as er
 
 # from homeassistant.helpers import config_validation as cv
 from homeassistant.components.google_generative_ai_conversation import conversation
@@ -16,7 +17,6 @@ from homeassistant.components.homeassistant import exposed_entities as ha_expose
 from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
-
 
 async def async_setup(hass: HomeAssistant, config: dict):
     """Set up the Gemini Tool Bridge component."""
@@ -163,6 +163,9 @@ class GeminiEntitiesView(http_helpers.HomeAssistantView):
         assistant = await request.text() or "conversation"
 
         try:
+            ent_reg = er.async_get(hass)
+            dev_reg = dr.async_get(hass)
+
             all_states = hass.states.async_all()
             ee = ha_exposed_entities.ExposedEntities(hass)
             await ee._async_load_data()
@@ -170,11 +173,31 @@ class GeminiEntitiesView(http_helpers.HomeAssistantView):
             # ee.entities
             exposed_entities = llm._get_exposed_entities(hass, assistant)
 
-            states = [state for state in all_states if ee.async_should_expose("conversation", state.entity_id)]
+            # states = [state for state in all_states if ee.async_should_expose("conversation", state.entity_id)]
 
-            _LOGGER.warning(f"Fetched {len(states)} entities from LLM API for assistant '{assistant}'")
 
-            return self.json({"success": True, "entities": exposed_entities, "states": states})
+            devices = {}
+
+            for state in all_states:
+                if not ee.async_should_expose(assistant, state.entity_id):
+                    continue
+                entity_entry = ent_reg.async_get(state.entity_id)
+                if entity_entry and entity_entry.device_id:
+                    if entity_entry.device_id not in devices:
+                        devices[entity_entry.device_id] = { "device": None, "entities": [] }
+
+                    devices[entity_entry.device_id]["entities"].append(state)
+                    
+                    if devices[entity_entry.device_id]["device"] is None:
+                        # Look up the device in the Device Registry using the device_id
+                        device_entry = dev_reg.async_get(entity_entry.device_id)
+
+                        if device_entry:
+                            devices[device_entry.id]["device"] = device_entry
+
+            # _LOGGER.warning(f"Fetched {len(exposed_devices)} devices from LLM API for assistant '{assistant}'")
+
+            return self.json({"success": True, "entities": exposed_entities, "devices": devices})
 
         except Exception as e:
             _LOGGER.error(f"Error fetching entities: {e}")
