@@ -30,8 +30,13 @@ async def websocket_get_tools(hass: HomeAssistant, connection: websocket_api.Act
     # We use the default assistant ID (conversation.default) or a specific one.
     # This automatically respects the "Expose" settings in HA UI.
     try:
+
+        llm_context = llm.async_get_context(hass)
         # Get the LLM API instance (handles entity exposure logic)
         # We assume the default LLM API for Home Assistant
+        llm_apis = llm.async_get_apis(hass)
+
+        exposed_entities = llm._get_exposed_entities(hass, "homeassistant")
         llm_api = await llm.async_get_api(hass, "homeassistant", llm.LLM_API_ASSIST)
         
         # 2. Get the tools (functions) exposed to this API
