@@ -3,7 +3,7 @@
 import logging
 
 # import voluptuous as vol
-from aiohttp.web import Request
+from aiohttp.web import Request, Response
 
 # from voluptuous_openapi import convert
 from homeassistant.core import HomeAssistant
@@ -17,6 +17,7 @@ from homeassistant.components.google_generative_ai_conversation import conversat
 from homeassistant.components.homeassistant import (
     exposed_entities as ha_exposed_entities,
 )
+import orjson
 
 from .const import DOMAIN
 
@@ -191,14 +192,19 @@ class GeminiEntitiesView(http_helpers.HomeAssistantView):
                     continue
                 entity_entry = ent_reg.async_get(state.entity_id)
 
-                entity_dict = state
+                entity_dict = state.as_dict() # Use state.as_dict() to ensure clean base
 
                 if entity_entry:
-                    entity_dict = {
+                    # entity_dict = {
+                    #     **entity_entry.extended_dict,
+                    #     "name": state.name,
+                    #     "friendly_name": state.attributes.get("friendly_name", ""),
+                    # }
+                    entity_dict.update({
                         **entity_entry.extended_dict,
                         "name": state.name,
                         "friendly_name": state.attributes.get("friendly_name", ""),
-                    }
+                    })
 
                 if entity_entry and entity_entry.device_id:
                     if entity_entry.device_id not in devices:
@@ -220,14 +226,24 @@ class GeminiEntitiesView(http_helpers.HomeAssistantView):
 
             # _LOGGER.warning(f"Fetched {len(exposed_devices)} devices from LLM API for assistant '{assistant}'")
 
-            return self.json(
-                {
-                    "success": True,
-                    # "entities": exposed_entities,
-                    "devices": devices,
-                    "non_device_entities": non_device_entities,
-                }
-            )
+            data = {
+                "success": True,
+                "devices": devices,
+                "non_device_entities": non_device_entities,
+            }
+            
+            # orjson.dumps returns bytes
+            json_bytes = orjson.dumps(data)
+            return Response(body=json_bytes, content_type="application/json")
+
+            # return self.json(
+            #     {
+            #         "success": True,
+            #         # "entities": exposed_entities,
+            #         "devices": devices,
+            #         "non_device_entities": non_device_entities,
+            #     }
+            # )
 
         except Exception as e:
             _LOGGER.error(f"Error fetching entities: {e}")
