@@ -230,9 +230,9 @@ class WebHandler:
         await ws.prepare(request)
 
         self.proxy.web_clients.add(ws)
-        if not self.proxy.connection_active.is_set():
-             logger.info("Web Client connected: Activating Gemini Session")
-             self.proxy.connection_active.set()
+        # if not self.proxy.connection_active.is_set():
+        #      logger.info("Web Client connected: Activating Gemini Session")
+        #      self.proxy.connection_active.set()
              
         logger.info("Web Client Connected")
 
