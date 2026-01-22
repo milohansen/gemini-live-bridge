@@ -1,4 +1,5 @@
 import datetime
+import traceback
 from device_context import generate_device_context, generate_grouped_device_context
 from google.genai import types
 import logging
@@ -309,6 +310,8 @@ async def fetch_entities_via_http(raw=False):
                     logger.error(f"Failed to fetch entities: {resp.status} {await resp.text()}")
     except Exception as e:
         logger.error(f"HTTP Request failed: {e}")
+        error_trace = traceback.format_exc()
+        logger.error(f"Traceback: {error_trace}")
 
     return [] # Return empty list on failure
 

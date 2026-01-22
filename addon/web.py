@@ -1,4 +1,5 @@
 import logging
+import traceback
 from aiohttp import web, WSMsgType
 
 from tools import fetch_entities_via_http, fetch_tools_via_http
@@ -265,6 +266,9 @@ class WebHandler:
             entities = await fetch_entities_via_http(True)
             return web.json_response(entities)
         except Exception as e:
+            logger.error(f"entity_list_handler error: {e}")
+            error_trace = traceback.format_exc()
+            logger.error(f"Traceback: {error_trace}")
             return web.Response(text=f"Error: {e}", status=500)
         
     async def entities_handler(self, request):
@@ -273,4 +277,7 @@ class WebHandler:
             entities = await fetch_entities_via_http()
             return web.Response(text=str(entities))
         except Exception as e:
+            logger.error(f"entities_handler error: {e}")
+            error_trace = traceback.format_exc()
+            logger.error(f"Traceback: {error_trace}")
             return web.Response(text=f"Error: {e}", status=500)
