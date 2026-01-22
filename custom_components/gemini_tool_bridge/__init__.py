@@ -211,13 +211,14 @@ class GeminiEntitiesView(http_helpers.HomeAssistantView):
                 }
 
                 if entity_entry:
+                    entity_dict = {**entity_entry.extended_dict, **entity_dict}
                     # try:
                     #     entity_dict = entity_entry.extended_dict
                     # except Exception as e:
                     #     _LOGGER.warning(
                     #         f"Error getting extended_dict for entity {entity_entry.entity_id}: {e}"
                     #     )
-                    entity_dict.update(entity_entry.extended_dict)
+                    # entity_dict.update(entity_entry.extended_dict)
                     # entity_dict.update(
                     #     {
                     #         "area_id": entity_entry.area_id,
@@ -239,7 +240,9 @@ class GeminiEntitiesView(http_helpers.HomeAssistantView):
                             "entities": [],
                         }
 
-                    devices[entity_entry.device_id]["entities"].append(entity_dict or state)
+                    devices[entity_entry.device_id]["entities"].append(
+                        entity_dict or state
+                    )
 
                     if devices[entity_entry.device_id]["device"] is None:
                         # Look up the device in the Device Registry using the device_id
@@ -251,45 +254,6 @@ class GeminiEntitiesView(http_helpers.HomeAssistantView):
                     non_device_entities.append(entity_dict or state)
 
             # _LOGGER.warning(f"Fetched {len(exposed_devices)} devices from LLM API for assistant '{assistant}'")
-
-            try:
-                orjson.dumps(devices)
-                _LOGGER.info("Successfully serialized devices with orjson")
-            except Exception as e:
-                _LOGGER.warning(f"Error serializing devices with orjson: {e}")
-
-            try:
-                orjson.dumps(non_device_entities)
-                _LOGGER.info(
-                    "Successfully serialized non-device entities with orjson"
-                )
-            except Exception as e:
-                _LOGGER.warning(f"Error serializing non-device entities with orjson: {e}")
-
-            try:
-                self.json(devices)
-                _LOGGER.info("Successfully serialized devices with self.json")
-            except Exception as e:
-                _LOGGER.warning(f"Error serializing devices with self.json: {e}")
-
-            try:
-                self.json(non_device_entities)
-                _LOGGER.info(
-                    "Successfully serialized non-device entities with self.json"
-                )
-            except Exception as e:
-                _LOGGER.warning(
-                    f"Error serializing non-device entities with self.json: {e}"
-                )
-
-            # data = {
-            #     "success": True,
-            #     "devices": devices,
-            #     "non_device_entities": non_device_entities,
-            # }
-
-            # json_bytes = orjson.dumps(data)
-            # return Response(body=json_bytes, content_type="application/json")
 
             return self.json(
                 {
