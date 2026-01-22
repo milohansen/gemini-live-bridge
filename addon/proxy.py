@@ -9,8 +9,9 @@ from google.genai import types
 import onnxruntime
 from aiohttp import web
 
-from tools import fetch_entities_via_http, get_tools, ToolHandler, HomeAssistantClient
-from device_context import STATIC_DEVICE_CONTEXT
+from intent_tools import get_intent_tools, IntentToolHandler, HomeAssistantClient
+# from tools import fetch_entities_via_http, get_tools, ToolHandler, HomeAssistantClient
+from device_context import fetch_context_via_http
 from web import WebHandler
 
 # Configuration
@@ -93,7 +94,7 @@ class AudioProxy:
         )
 
         self.ha_client = HomeAssistantClient()
-        self.tool_handler = ToolHandler(self.ha_client)
+        self.tool_handler = IntentToolHandler(self.ha_client)
         self.web_handler = WebHandler(self)
 
         self.esp_address = None
@@ -237,14 +238,14 @@ class AudioProxy:
         logger.info("Waiting for ESP32 connection before connecting to Gemini...")
         await self.connection_active.wait()
 
-        context = await fetch_entities_via_http()
+        context = await fetch_context_via_http()
 
         base_instruction = "You are a helpful and friendly AI assistant. Be concise."
         full_system_instruction = f"{base_instruction}\n\n{context}"
 
         config = types.LiveConnectConfig(
-            response_modalities=["AUDIO"],
-            tools=get_tools(),
+            response_modalities=[types.Modality.AUDIO],
+            tools=get_intent_tools(),
             system_instruction=types.Content(
                 parts=[types.Part.from_text(text=full_system_instruction)],
                 role="user",
@@ -259,10 +260,10 @@ class AudioProxy:
                     )
                 )
             ),
-            output_audio_transcription=types.AudioTranscriptionConfig,
-            input_audio_transcription=types.AudioTranscriptionConfig,
+            output_audio_transcription=types.AudioTranscriptionConfig(),
+            input_audio_transcription=types.AudioTranscriptionConfig(),
             realtime_input_config=types.RealtimeInputConfig(
-                turn_coverage="TURN_INCLUDES_ALL_INPUT"
+                turn_coverage=types.TurnCoverage.TURN_INCLUDES_ALL_INPUT
             ),
         )
 

@@ -1,5 +1,11 @@
+import os
 import re
 import logging
+import traceback
+from aiohttp import ClientSession
+
+HA_URL = "http://supervisor/core/api"
+HA_TOKEN = os.getenv('SUPERVISOR_TOKEN')
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -10,9 +16,13 @@ logger = logging.getLogger(__name__)
 STATIC_DEVICE_CONTEXT_PREFIX = "Smart Home Device Context: An overview of the areas and the devices in this smart home:"
 DEVICE_CONTEXT_PREFIX_LINES = [
     "Smart Home Device Context: An overview of the areas and the devices in this smart home:",
+    "You are running on My Display, located in the Office area.",
     "",
-    "Note: The following lists group entities by their assigned Areas in Home Assistant.",
-    "Each entity is represented with its User Friendly Name and Entity ID for clarity.",
+    "Tool Notes: In the description of each tool, parameters are listed in square brackets [] to indicate possible slot combinations.",
+    "For example, [name, area+name] means the tool can be used with either the 'name' parameter alone or the 'area' parameter with the 'name' parameter together, but will fail if area is used alone.",
+    "",
+    "Entity Notes: The following lists group entities by their assigned Areas in Home Assistant.",
+    "Each entity is represented with its User Friendly Name and Entity ID for tool usage.",
     "Entity names that start with their Area or Device names have been shortened for conciseness. (e.g., 'Living Room Lamp' is shown as 'Lamp' in the Living Room section.)",
 ]
 
@@ -237,78 +247,42 @@ def get_entity_name(entity, device_name=None, area_name=None):
     return name
 
 
-STATIC_DEVICE_CONTEXT = """
-Static Context: An overview of the areas and the devices in this smart home:
-- names: 'TV'
-  domain: media_player
-  areas: Living Room
-- names: Bedroom CO2
-  domain: sensor
-  areas: Bedroom
-- names: Bedroom Humidity
-  domain: sensor
-  areas: Bedroom
-- names: Bedroom Temperature
-  domain: sensor
-  areas: Bedroom
-- names: Forecast Home
-  domain: weather
-- names: Google Gang
-  domain: media_player
-- names: Home Assistant Voice
-  domain: media_player
-  areas: Bedroom
-- names: Home group
-  domain: media_player
-- names: Humidifier Fan
-  domain: fan
-  areas: Bedroom
-- names: Humidifier Humidity, Temperature
-  domain: sensor
-  areas: Bedroom
-- names: IKEA Air Quality Monitor (CO2, Humidity, PM2.5, Temp)
-  domain: sensor
-  areas: Living Room
-- names: Kitchen Display, Speaker
-  domain: media_player
-  areas: Kitchen
-- names: Living Room Lamp
-  domain: light
-  areas: Living Room
-- names: Living Room Speaker, TV
-  domain: media_player
-  areas: Living Room
-- names: Marcelle's Bedside Lamp
-  domain: light
-  areas: Bedroom
-- names: Marcelle's Desk Light
-  domain: light
-  areas: Office
-- names: Milo's Bedside Lamp
-  domain: light
-  areas: Bedroom
-- names: Milo's Desk Light
-  domain: light
-  areas: Office
-- names: My Display Screen
-  domain: light
-  areas: Kitchen
-- names: MyCO2 FA0B (CO2, Humidity, Temp)
-  domain: sensor
-  areas: Office
-- names: Pole Lamp
-  domain: light
-  areas: Dining Room
-- names: Shopping List
-  domain: todo
-- names: Squire
-  domain: light
-  areas: Dining Room
-- names: TV Lights
-  domain: light
-  areas: Living Room
-- names: Tea, Tea Too
-  domain: timer
-- names: WiZ A21.E26
-  domain: light
-"""
+async def fetch_context_via_http(raw=False):
+    """Fetch entities from the custom component HTTP endpoint."""
+    url = f"{HA_URL}/gemini_live/entities" # This matches the view URL defined above (note: HA_URL usually ends in /api)
+    
+    # NOTE: HA_URL in your entities.py is "http://supervisor/core/api"
+    # The view registers at "/api/gemini_live/entities" relative to root.
+    # So the full URL is likely "http://supervisor/core/api/gemini_live/entities"
+    # We need to construct it carefully.
+    
+    # Correct URL construction for Supervisor API usage:
+    # full_url = "http://supervisor/core/api/gemini_live/entities"
+
+    headers = {
+        "Authorization": f"Bearer {HA_TOKEN}",
+        # "Content-Type": "application/json",
+        "Content-Type": "text/plain",
+    }
+
+    try:
+        async with ClientSession() as session:
+            async with session.post(url, headers=headers) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    if data.get("success"):
+                        # logger.info(f"Loaded {len(data['entities'])} entities from Home Assistant HTTP API")
+                        return data if raw else generate_grouped_device_context(data)
+                        # return data["entities"]
+                        # return generate_grouped_device_context(data)
+                    else:
+                        logger.error(f"API Error: {data.get('error')}")
+                else:
+                    logger.error(f"Failed to fetch entities: {resp.status} {await resp.text()}")
+    except Exception as e:
+        logger.error(f"HTTP Request failed: {e}")
+        error_trace = traceback.format_exc()
+        logger.error(f"Traceback: {error_trace}")
+
+    return [] # Return empty list on failure
+
