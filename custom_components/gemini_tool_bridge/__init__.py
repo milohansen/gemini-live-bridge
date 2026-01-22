@@ -179,7 +179,7 @@ class GeminiEntitiesView(http_helpers.HomeAssistantView):
             await ee._async_load_data()
             # ee._assistants
             # ee.entities
-            exposed_entities = llm._get_exposed_entities(hass, assistant)
+            # exposed_entities = llm._get_exposed_entities(hass, assistant)
 
             # states = [state for state in all_states if ee.async_should_expose("conversation", state.entity_id)]
 
@@ -194,7 +194,7 @@ class GeminiEntitiesView(http_helpers.HomeAssistantView):
                 entity_dict = {
                     **(entity_entry.extended_dict if entity_entry else state.as_dict()),
                     "name": state.name,
-                    "friendly_name": state.attributes.get("friendly_name"),
+                    "friendly_name": state.attributes.get("friendly_name", ""),
                 }
 
                 if entity_entry and entity_entry.device_id:
@@ -220,7 +220,7 @@ class GeminiEntitiesView(http_helpers.HomeAssistantView):
             return self.json(
                 {
                     "success": True,
-                    "entities": exposed_entities,
+                    # "entities": exposed_entities,
                     "devices": devices,
                     "non_device_entities": non_device_entities,
                 }
