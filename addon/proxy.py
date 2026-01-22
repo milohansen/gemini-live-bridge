@@ -387,7 +387,7 @@ class AudioProxy:
                 web.post("/tool", self.web_handler.tool_test_handler),
                 web.get("/tools", self.web_handler.tool_list_handler),
                 web.get("/entities", self.web_handler.entity_list_handler),
-                web.post("/entities", self.web_handler.entity_list_handler),
+                web.post("/entities", self.web_handler.entities_handler),
             ]
         )
         runner = web.AppRunner(app)

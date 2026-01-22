@@ -262,7 +262,15 @@ class WebHandler:
     async def entity_list_handler(self, request):
         """List all available entities."""
         try:
-            entities = await fetch_entities_via_http()
+            entities = await fetch_entities_via_http(True)
             return web.json_response(entities)
+        except Exception as e:
+            return web.Response(text=f"Error: {e}", status=500)
+        
+    async def entities_handler(self, request):
+        """List all available entities."""
+        try:
+            entities = await fetch_entities_via_http()
+            return web.Response(text=str(entities))
         except Exception as e:
             return web.Response(text=f"Error: {e}", status=500)

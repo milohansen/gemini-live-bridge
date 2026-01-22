@@ -1,5 +1,5 @@
 import datetime
-from device_context import generate_device_context
+from device_context import generate_device_context, generate_grouped_device_context
 from google.genai import types
 import logging
 import os
@@ -173,7 +173,7 @@ class ToolHandler:
         elif "name" in args:
             payload["name"] = args["name"]
         else:
-            raise "'name' or 'entity_id' required"
+            raise ValueError("'name' or 'entity_id' required")
 
         
         if state == "off":
@@ -275,7 +275,7 @@ async def fetch_tools_via_http():
 
     return [] # Return empty list on failure
 
-async def fetch_entities_via_http(assistant=None):
+async def fetch_entities_via_http(raw=False):
     """Fetch entities from the custom component HTTP endpoint."""
     url = f"{HA_URL}/gemini_live/entities" # This matches the view URL defined above (note: HA_URL usually ends in /api)
     
@@ -295,14 +295,14 @@ async def fetch_entities_via_http(assistant=None):
 
     try:
         async with ClientSession() as session:
-            async with session.post(url, headers=headers, data=assistant) as resp:
+            async with session.post(url, headers=headers) as resp:
                 if resp.status == 200:
                     data = await resp.json()
                     if data.get("success"):
                         logger.info(f"Loaded {len(data['entities'])} entities from Home Assistant HTTP API")
-                        # return data
+                        return data if raw else generate_grouped_device_context(data)
                         # return data["entities"]
-                        return generate_device_context(data)
+                        # return generate_grouped_device_context(data)
                     else:
                         logger.error(f"API Error: {data.get('error')}")
                 else:
