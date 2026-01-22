@@ -20,6 +20,7 @@ DEVICE_CONTEXT_PREFIX_LINES = [
     "",
     "Tool Notes: In the description of each tool, parameters are listed in square brackets [] to indicate possible slot combinations.",
     "For example, [name, area+name] means the tool can be used with either the 'name' parameter alone or the 'area' parameter with the 'name' parameter together, but will fail if area is used alone.",
+    "Any tool that can be called with a 'name' parameter can also be called with an 'entity_id' parameter instead of 'name' for more precise targeting.",
     "",
     "Entity Notes: The following lists group entities by their assigned Areas in Home Assistant.",
     "Each entity is represented with its User Friendly Name and Entity ID for tool usage.",
@@ -126,6 +127,7 @@ def generate_device_context(data):
 
     return "\n".join(lines)
 
+entity_name_map = {}
 
 def generate_grouped_device_context(data):
     """
@@ -167,7 +169,7 @@ def generate_grouped_device_context(data):
             for entity in entities:
                 eid = entity.get("entity_id")
 
-                label = get_entity_name(entity, device_name, area)
+                label = format_entity_name(entity, device_name, area)
 
                 entity_strings.append(f"{label} ({eid})")
 
@@ -190,7 +192,7 @@ def generate_grouped_device_context(data):
         for entity in data["non_device_entities"]:
             eid = entity.get("entity_id")
             area = entity.get("area_id")
-            label = get_entity_name(entity, None, area)
+            label = format_entity_name(entity, None, area)
             if area:
                 add_to_map(area, f"- {label} ({eid})")
             else:
@@ -215,18 +217,22 @@ def generate_grouped_device_context(data):
     return "\n".join(lines)
 
 
-def get_entity_name(entity, device_name=None, area_name=None):
+def format_entity_name(entity, device_name=None, area_name=None):
     """
     Helper to get a cleaned up entity name.
     Strips device and area names from the start if present.
     """
+    eid = entity.get("entity_id")
+
     friendly_name = (
         entity.get("friendly_name")
         or entity.get("name")
         or entity.get("original_name")
-        or entity.get("entity_id")
+        or eid.split(".")[1].replace("_", " ")
     )
     name = friendly_name
+
+    entity_name_map[eid] = name
 
     # Naming Logic:
     # If the entity name starts with the device name, strip it to be concise.
@@ -246,6 +252,9 @@ def get_entity_name(entity, device_name=None, area_name=None):
 
     return name
 
+def get_name_for_entity(entity_id):
+    """Retrieve the cleaned up name for a given entity_id."""
+    return entity_name_map.get(entity_id)  # Fallback to entity_id if name not found
 
 async def fetch_context_via_http(raw=False):
     """Fetch entities from the custom component HTTP endpoint."""

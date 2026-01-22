@@ -4,6 +4,8 @@ import datetime
 from aiohttp import ClientSession
 import os
 
+from device_context import get_name_for_entity
+
 # Reuse logger and constants from tools.py
 logger = logging.getLogger(__name__)
 HA_URL = "http://supervisor/core/api"
@@ -117,6 +119,11 @@ class IntentToolHandler:
         # Ensure name cache is populated
         if not self.ha.entities:
             await self.ha.get_states()
+
+        # TODO: Only do name resolution for tools that need it
+        if not "name" in args and "entity_id" in args:
+            args["name"] = get_name_for_entity(args["entity_id"])
+            del args["entity_id"]
 
         try:
             if tool_name == "HassIntentRaw":
@@ -357,6 +364,7 @@ def get_intent_tools():
                             #     "description": "Kelvin value",
                             # },
                             "name": {"type": "STRING"},
+                            "entity_id": {"type": "STRING"},
                             "area": {"type": "STRING"},
                         },
                     },
@@ -369,6 +377,7 @@ def get_intent_tools():
                         "properties": {
                             "percentage": {"type": "INTEGER"},
                             "name": {"type": "STRING"},
+                            "entity_id": {"type": "STRING"},
                             "area": {"type": "STRING"},
                         },
                         "required": ["percentage"],
@@ -393,6 +402,7 @@ def get_intent_tools():
                                 ],
                             },
                             "name": {"type": "STRING"},
+                            "entity_id": {"type": "STRING"},
                             "area": {"type": "STRING"},
                         },
                         "required": ["search_query"],
@@ -410,6 +420,7 @@ def get_intent_tools():
                                 "description": "The playback command to issue.",
                             },
                             "name": {"type": "STRING"},
+                            "entity_id": {"type": "STRING"},
                             "area": {"type": "STRING"},
                         },
                         "required": ["command"],
@@ -431,6 +442,7 @@ def get_intent_tools():
                                 "description": "The target volume percentage (0-100) or the step amount to change by.",
                             },
                             "name": {"type": "STRING"},
+                            "entity_id": {"type": "STRING"},
                             "area": {"type": "STRING"},
                         },
                         "required": ["mode", "level"],
@@ -447,6 +459,7 @@ def get_intent_tools():
                                 "description": "True to mute, False to unmute.",
                             },
                             "name": {"type": "STRING"},
+                            "entity_id": {"type": "STRING"},
                             "area": {"type": "STRING"},
                         },
                         "required": ["mute"],
@@ -621,6 +634,7 @@ def get_intent_tools():
                         "type": "OBJECT",
                         "properties": {
                             "name": {"type": "STRING"},
+                            "entity_id": {"type": "STRING"},
                             "area": {"type": "STRING"},
                             "domain": {"type": "ARRAY", "items": {"type": "STRING"}},
                             "device_class": {

@@ -2,11 +2,13 @@ import logging
 import traceback
 from aiohttp import web, WSMsgType
 
-from tools import fetch_entities_via_http, fetch_tools_via_http
+# Use the entity fetcher from the original tools file
+from tools import fetch_entities_via_http
+# Import the new intent tools to list them in the UI
+from intent_tools import get_intent_tools
 
 logger = logging.getLogger(__name__)
 
-# Move the HTML template here to keep the main file clean
 INDEX_HTML = """
 <!DOCTYPE html>
 <html>
@@ -38,14 +40,20 @@ INDEX_HTML = """
         <p>Select a tool and provide JSON arguments to test execution.</p>
         
         <select id="toolName">
-            <option value="HassSetState">HassSetState (On/Off/Lock)</option>
+            <option value="ProxySetState">ProxySetState (On/Off/Lock/Open)</option>
             <option value="HassLightSet">HassLightSet (Brightness/Color)</option>
-            <option value="HassMediaControl">HassMediaControl (Play/Pause)</option>
-            <option value="HassControlVolume">HassControlVolume</option>
-            <option value="HassManageTodoList">HassManageTodoList</option>
-            <option value="GetLiveContext">GetLiveContext</option>
-            <option value="HassBroadcast">HassBroadcast</option>
+            <option value="ProxyMediaControl">ProxyMediaControl (Play/Pause/Next)</option>
+            <option value="ProxyControlVolume">ProxyControlVolume (Set/Increase/Decrease)</option>
+            <option value="ProxySetMute">ProxySetMute</option>
+            <option value="HassMediaSearchAndPlay">HassMediaSearchAndPlay</option>
             <option value="HassFanSetSpeed">HassFanSetSpeed</option>
+            <option value="HassStartTimer">HassStartTimer</option>
+            <option value="HassCancelTimer">HassCancelTimer</option>
+            <option value="ProxyAdjustTimer">ProxyAdjustTimer (Increase/Decrease)</option>
+            <option value="ProxyPauseResumeTimer">ProxyPauseResumeTimer</option>
+            <option value="HassBroadcast">HassBroadcast</option>
+            <option value="GetLiveContext">GetLiveContext</option>
+            <option value="HassIntentRaw">HassIntentRaw</option>
         </select>
         <br/>
         
@@ -61,7 +69,7 @@ INDEX_HTML = """
 
     <div class="section">
         <h3>Available Tools</h3>
-        <p>Fetch the list of tools currently available to Gemini.</p>
+        <p>Fetch the list of tools currently configured for Gemini.</p>
         <button onclick="fetchTools()">List Tools</button>
         <div style="text-align: left; margin-top: 15px;">
             <strong>Result:</strong>
@@ -247,6 +255,7 @@ class WebHandler:
             data = await request.json()
             name = data.get("name")
             args = data.get("args", {})
+            # This calls the IntentToolHandler logic in proxy.py
             result = await self.proxy.tool_handler.handle_tool_call(name, args)
             return web.Response(text=str(result))
         except Exception as e:
@@ -255,9 +264,21 @@ class WebHandler:
     async def tool_list_handler(self, request):
         """List all available tools."""
         try:
-            tools = await fetch_tools_via_http()
-            return web.json_response(tools)
+            # Construct a JSON list from local intent tools definition
+            tools_data = []
+            tool_objs = get_intent_tools()
+            for tool in tool_objs:
+                funcs = tool.function_declarations or []
+                for func in funcs:
+                     tools_data.append({
+                         "name": func.name,
+                         "description": func.description,
+                         "parameters": func.parameters_json_schema
+                     })
+            
+            return web.json_response({"tools": tools_data})
         except Exception as e:
+            logger.error(f"tool_list_handler error: {e}")
             return web.Response(text=f"Error: {e}", status=500)
         
     async def entity_list_handler(self, request):
@@ -272,7 +293,7 @@ class WebHandler:
             return web.Response(text=f"Error: {e}", status=500)
         
     async def entities_handler(self, request):
-        """List all available entities."""
+        """List all available entities (grouped context)."""
         try:
             entities = await fetch_entities_via_http()
             return web.Response(text=str(entities))
