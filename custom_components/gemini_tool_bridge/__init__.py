@@ -170,7 +170,7 @@ class GeminiEntitiesView(http_helpers.HomeAssistantView):
     async def post(self, request: Request):
         """Handle POST requests to fetch entities."""
         hass: HomeAssistant = request.app["hass"]
-        assistant = await request.text() or "conversation"
+        # assistant = await request.text() or "conversation"
 
         try:
             ent_reg = er.async_get(hass)
@@ -192,7 +192,7 @@ class GeminiEntitiesView(http_helpers.HomeAssistantView):
             non_device_entities = []
 
             for state in all_states:
-                if not ee.async_should_expose(assistant, state.entity_id):
+                if not ee.async_should_expose("conversation", state.entity_id):
                     continue
                 entity_entry = ent_reg.async_get(state.entity_id)
 
@@ -282,24 +282,22 @@ class GeminiEntitiesView(http_helpers.HomeAssistantView):
                     f"Error serializing non-device entities with self.json: {e}"
                 )
 
-            data = {
-                "success": True,
-                "devices": devices,
-                "non_device_entities": non_device_entities,
-            }
+            # data = {
+            #     "success": True,
+            #     "devices": devices,
+            #     "non_device_entities": non_device_entities,
+            # }
 
-            # orjson.dumps returns bytes
-            json_bytes = orjson.dumps(data)
-            return Response(body=json_bytes, content_type="application/json")
+            # json_bytes = orjson.dumps(data)
+            # return Response(body=json_bytes, content_type="application/json")
 
-            # return self.json(
-            #     {
-            #         "success": True,
-            #         # "entities": exposed_entities,
-            #         "devices": devices,
-            #         "non_device_entities": non_device_entities,
-            #     }
-            # )
+            return self.json(
+                {
+                    "success": True,
+                    "devices": devices,
+                    "non_device_entities": non_device_entities,
+                }
+            )
 
         except Exception as e:
             _LOGGER.error(f"Error fetching entities: {e}")
