@@ -4,7 +4,7 @@ import logging
 import traceback
 
 # import voluptuous as vol
-from aiohttp.web import Request, Response
+from aiohttp.web import Request
 
 from voluptuous_openapi import convert
 from homeassistant.core import HomeAssistant
@@ -14,11 +14,10 @@ from homeassistant.helpers import llm
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 
 # from homeassistant.helpers import config_validation as cv
-from homeassistant.components.google_generative_ai_conversation import conversation
+# from homeassistant.components.google_generative_ai_conversation import conversation
 from homeassistant.components.homeassistant import (
     exposed_entities as ha_exposed_entities,
 )
-import orjson
 
 from .const import DOMAIN
 
