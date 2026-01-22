@@ -200,16 +200,22 @@ class GeminiEntitiesView(http_helpers.HomeAssistantView):
                     continue
                 entity_entry = ent_reg.async_get(state.entity_id)
 
-                entity_dict = {
-                    "entity_id": state.entity_id,
-                    "state": state.state,
-                    "name": state.name,
-                    "friendly_name": state.attributes.get("friendly_name"),
-                    # "attributes": state.attributes,
-                }
+                entity_dict = None
+                # entity_dict = {
+                #     "entity_id": state.entity_id,
+                #     "state": state.state,
+                #     "name": state.name,
+                #     "friendly_name": state.attributes.get("friendly_name"),
+                #     # "attributes": state.attributes,
+                # }
 
                 if entity_entry:
-                    entity_dict = entity_entry.extended_dict
+                    try:
+                        entity_dict = entity_entry.extended_dict
+                    except Exception as e:
+                        _LOGGER.warning(
+                            f"Error getting extended_dict for entity {entity_entry.entity_id}: {e}"
+                        )
                     # entity_dict.update(entity_entry.extended_dict)
                     # entity_dict.update(
                     #     {
@@ -232,7 +238,7 @@ class GeminiEntitiesView(http_helpers.HomeAssistantView):
                             "entities": [],
                         }
 
-                    devices[entity_entry.device_id]["entities"].append(entity_dict)
+                    devices[entity_entry.device_id]["entities"].append(entity_dict or state)
 
                     if devices[entity_entry.device_id]["device"] is None:
                         # Look up the device in the Device Registry using the device_id
@@ -241,7 +247,7 @@ class GeminiEntitiesView(http_helpers.HomeAssistantView):
                         if device_entry:
                             devices[device_entry.id]["device"] = device_entry.dict_repr
                 else:
-                    non_device_entities.append(entity_dict)
+                    non_device_entities.append(entity_dict or state)
 
             # _LOGGER.warning(f"Fetched {len(exposed_devices)} devices from LLM API for assistant '{assistant}'")
 
