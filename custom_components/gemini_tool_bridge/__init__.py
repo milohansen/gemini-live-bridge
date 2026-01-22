@@ -191,6 +191,12 @@ class GeminiEntitiesView(http_helpers.HomeAssistantView):
                     continue
                 entity_entry = ent_reg.async_get(state.entity_id)
 
+                entity_dict = {
+                    **(entity_entry.extended_dict if entity_entry else state.as_dict()),
+                    "name": state.name,
+                    "friendly_name": state.attributes.get("friendly_name"),
+                }
+
                 if entity_entry and entity_entry.device_id:
                     if entity_entry.device_id not in devices:
                         devices[entity_entry.device_id] = {
@@ -198,7 +204,7 @@ class GeminiEntitiesView(http_helpers.HomeAssistantView):
                             "entities": [],
                         }
 
-                    devices[entity_entry.device_id]["entities"].append(entity_entry.extended_dict)
+                    devices[entity_entry.device_id]["entities"].append(entity_dict)
 
                     if devices[entity_entry.device_id]["device"] is None:
                         # Look up the device in the Device Registry using the device_id
@@ -206,10 +212,8 @@ class GeminiEntitiesView(http_helpers.HomeAssistantView):
 
                         if device_entry:
                             devices[device_entry.id]["device"] = device_entry.dict_repr
-                elif entity_entry:
-                    non_device_entities.append(entity_entry.extended_dict)
                 else:
-                    non_device_entities.append(state)
+                    non_device_entities.append(entity_dict)
 
             # _LOGGER.warning(f"Fetched {len(exposed_devices)} devices from LLM API for assistant '{assistant}'")
 
