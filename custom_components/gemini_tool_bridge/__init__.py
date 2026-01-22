@@ -195,7 +195,7 @@ class GeminiEntitiesView(http_helpers.HomeAssistantView):
                             "entities": [],
                         }
 
-                    devices[entity_entry.device_id]["entities"].append(state)
+                    devices[entity_entry.device_id]["entities"].append(entity_entry.extended_dict)
 
                     if devices[entity_entry.device_id]["device"] is None:
                         # Look up the device in the Device Registry using the device_id
@@ -203,6 +203,8 @@ class GeminiEntitiesView(http_helpers.HomeAssistantView):
 
                         if device_entry:
                             devices[device_entry.id]["device"] = device_entry.dict_repr
+                elif entity_entry:
+                    non_device_entities.append(entity_entry.extended_dict)
                 else:
                     non_device_entities.append(state)
 
