@@ -191,11 +191,14 @@ class GeminiEntitiesView(http_helpers.HomeAssistantView):
                     continue
                 entity_entry = ent_reg.async_get(state.entity_id)
 
-                entity_dict = {
-                    **(entity_entry.extended_dict if entity_entry else state.as_dict()),
-                    "name": state.name,
-                    "friendly_name": state.attributes.get("friendly_name", ""),
-                }
+                entity_dict = state
+
+                if entity_entry:
+                    entity_dict = {
+                        **entity_entry.extended_dict,
+                        "name": state.name,
+                        "friendly_name": state.attributes.get("friendly_name", ""),
+                    }
 
                 if entity_entry and entity_entry.device_id:
                     if entity_entry.device_id not in devices:
