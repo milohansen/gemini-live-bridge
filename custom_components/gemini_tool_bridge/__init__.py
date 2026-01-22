@@ -104,7 +104,7 @@ class GeminiToolsView(http_helpers.HomeAssistantView):
         """Handle GET requests to fetch tools."""
         hass = request.app["hass"]
 
-        _LOGGER.warning("Received request for Gemini tools")
+        _LOGGER.info("Received request for Gemini tools")
 
         try:
             # 1. Get the LLM API for the default 'Assist' pipeline
@@ -122,7 +122,7 @@ class GeminiToolsView(http_helpers.HomeAssistantView):
             # 2. Get the tools (functions) exposed to this API
             tools = llm_api.tools
 
-            _LOGGER.warning(f"Fetched {len(tools)} tools from LLM API")
+            _LOGGER.info(f"Fetched {len(tools)} tools from LLM API")
 
             # 3. Convert to Gemini's expected JSON Schema
             gemini_tools = []
@@ -156,6 +156,8 @@ class GeminiEntitiesView(http_helpers.HomeAssistantView):
         """Handle GET requests to fetch entities."""
         hass = request.app["hass"]
 
+        _LOGGER.info("Received GET request for Gemini entities")
+
         try:
             exposed_entities = llm._get_exposed_entities(hass, "assist")
 
@@ -171,6 +173,8 @@ class GeminiEntitiesView(http_helpers.HomeAssistantView):
         """Handle POST requests to fetch entities."""
         hass: HomeAssistant = request.app["hass"]
         # assistant = await request.text() or "conversation"
+
+        _LOGGER.info("Received POST request for Gemini entities")
 
         try:
             ent_reg = er.async_get(hass)
@@ -206,17 +210,19 @@ class GeminiEntitiesView(http_helpers.HomeAssistantView):
 
                 if entity_entry:
                     # entity_dict.update(entity_entry.extended_dict)
-                    entity_dict.update({
-                        "area_id": entity_entry.area_id,
-                        "device_id": entity_entry.device_id,
-                        "original_name": entity_entry.original_name,
-                        "aliases": entity_entry.aliases,
-                        "platform": entity_entry.platform,
-                        "unique_id": entity_entry.unique_id,
-                        "labels": list(entity_entry.labels),
-                        "categories": list(entity_entry.categories),
-                        "capabilities": entity_entry.capabilities,
-                    })
+                    entity_dict.update(
+                        {
+                            "area_id": entity_entry.area_id,
+                            "device_id": entity_entry.device_id,
+                            "original_name": entity_entry.original_name,
+                            "aliases": entity_entry.aliases,
+                            "platform": entity_entry.platform,
+                            "unique_id": entity_entry.unique_id,
+                            "labels": list(entity_entry.labels),
+                            "categories": list(entity_entry.categories),
+                            "capabilities": entity_entry.capabilities,
+                        }
+                    )
                     # try:
                     #     entity_dict.update(
                     #         {
