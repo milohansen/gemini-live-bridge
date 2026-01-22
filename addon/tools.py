@@ -161,11 +161,14 @@ class ToolHandler:
 
     async def _handle_set_state(self, args):
         state = args.get("state")
-        domain = args.get("device_class")
+        domain = args.get("device_class", "light")
         service = "turn_on"
 
         del args["state"]
-        del args["device_class"]
+        try:
+            del args["device_class"]
+        except KeyError:
+            pass
 
         payload = {}
 
@@ -300,7 +303,7 @@ async def fetch_entities_via_http(raw=False):
                 if resp.status == 200:
                     data = await resp.json()
                     if data.get("success"):
-                        logger.info(f"Loaded {len(data['entities'])} entities from Home Assistant HTTP API")
+                        # logger.info(f"Loaded {len(data['entities'])} entities from Home Assistant HTTP API")
                         return data if raw else generate_grouped_device_context(data)
                         # return data["entities"]
                         # return generate_grouped_device_context(data)
@@ -322,15 +325,16 @@ def get_tools():
                 types.FunctionDeclaration(
                     name="HassSetState",
                     description="Changes the state of a device. Use this to turn things on/off, lock/unlock locks, or open/close covers.",
-                    parameters={
+                    parameters_json_schema={
                         "type": "OBJECT",
                         "properties": {
                             "state": {
                                 "type": "STRING",
                                 "enum": ["on", "off", "lock", "unlock", "open", "close"],
-                                "description": "The desired state. Use 'on' for activating, 'lock' for locks, 'open' for covers."
+                                # "description": "The desired state. Use 'on' for activating, 'lock' for locks, 'open' for covers."
                             },
                             "name": { "type": "STRING" },
+                            "entity_id": { "type": "STRING" },
                             "area": { "type": "STRING" },
                             "domain": {
                                 "type": "ARRAY",
@@ -338,16 +342,17 @@ def get_tools():
                             },
                             "device_class": {
                                 "type": "STRING",
-                                "enum": ["tv", "speaker", "switch", "light", "fan", "lock", "cover"]
+                                "enum": ["tv", "speaker", "switch", "light", "fan", "lock", "cover"],
+                                "default": "light",
                             }
                         },
-                        "required": ["state", "device_class"]
+                        "required": ["state"]
                     }
                 ),
                 types.FunctionDeclaration(
                     name="HassMediaControl",
                     description="Controls media playback (pause, resume, skip).",
-                    parameters={
+                    parameters_json_schema={
                         "type": "OBJECT",
                         "properties": {
                             "command": {
@@ -368,7 +373,7 @@ def get_tools():
                 types.FunctionDeclaration(
                     name="HassControlVolume",
                     description="Sets or adjusts the volume of a media player.",
-                    parameters={
+                    parameters_json_schema={
                         "type": "OBJECT",
                         "properties": {
                             "mode": {
@@ -393,7 +398,7 @@ def get_tools():
                 types.FunctionDeclaration(
                     name="HassSetMute",
                     description="Mutes or unmutes a media player.",
-                    parameters={
+                    parameters_json_schema={
                         "type": "OBJECT",
                         "properties": {
                             "mute": {
@@ -413,7 +418,7 @@ def get_tools():
                 types.FunctionDeclaration(
                     name="HassManageTodoList",
                     description="Adds or completes items on a todo list.",
-                    parameters={
+                    parameters_json_schema={
                         "type": "OBJECT",
                         "properties": {
                             "action": {
@@ -436,7 +441,7 @@ def get_tools():
                 types.FunctionDeclaration(
                     name="HassLightSet",
                     description="Sets the brightness or color of a light.",
-                    parameters={
+                    parameters_json_schema={
                         "type": "OBJECT",
                         "properties": {
                             "brightness": { "type": "INTEGER", "description": "0 to 100" },
@@ -450,7 +455,7 @@ def get_tools():
                 types.FunctionDeclaration(
                     name="HassFanSetSpeed",
                     description="Sets a fan's speed percentage.",
-                    parameters={
+                    parameters_json_schema={
                         "type": "OBJECT",
                         "properties": {
                             "percentage": { "type": "INTEGER" },
@@ -463,7 +468,7 @@ def get_tools():
                 types.FunctionDeclaration(
                     name="HassMediaSearchAndPlay",
                     description="Searches for media and plays it.",
-                    parameters={
+                    parameters_json_schema={
                         "type": "OBJECT",
                         "properties": {
                             "search_query": { "type": "STRING" },
@@ -480,7 +485,7 @@ def get_tools():
                 types.FunctionDeclaration(
                     name="HassBroadcast",
                     description="Broadcast a message via TTS.",
-                    parameters={
+                    parameters_json_schema={
                         "type": "OBJECT",
                         "properties": {
                             "message": { "type": "STRING" }
@@ -491,7 +496,7 @@ def get_tools():
                 types.FunctionDeclaration(
                     name="todo_get_items",
                     description="Get items from a todo list.",
-                    parameters={
+                    parameters_json_schema={
                         "type": "OBJECT",
                         "properties": {
                             "todo_list": { "type": "STRING" },
@@ -503,7 +508,7 @@ def get_tools():
                 types.FunctionDeclaration(
                     name="HassCancelAllTimers",
                     description="Cancels all active timers in an area.",
-                    parameters={
+                    parameters_json_schema={
                         "type": "OBJECT",
                         "properties": {
                             "area": { "type": "STRING" }
@@ -517,7 +522,7 @@ def get_tools():
                 types.FunctionDeclaration(
                     name="GetLiveContext",
                     description="Get real-time states (on/off, temp, etc) for answering status questions.",
-                    parameters={
+                    parameters_json_schema={
                         "type": "OBJECT",
                         "properties": {
                             "name": { "type": "STRING" },
