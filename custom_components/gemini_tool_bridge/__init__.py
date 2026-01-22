@@ -226,6 +226,26 @@ class GeminiEntitiesView(http_helpers.HomeAssistantView):
 
             # _LOGGER.warning(f"Fetched {len(exposed_devices)} devices from LLM API for assistant '{assistant}'")
 
+            try:
+                orjson.dumps(devices)
+            except Exception as e:
+                _LOGGER.error(f"Error serializing devices with orjson: {e}")
+            
+            try:
+                orjson.dumps(non_device_entities)
+            except Exception as e:
+                _LOGGER.error(f"Error serializing non-device entities with orjson: {e}")
+
+            try:
+                self.json(devices)
+            except Exception as e:
+                _LOGGER.error(f"Error serializing devices with self.json: {e}")
+            
+            try:
+                self.json(non_device_entities)
+            except Exception as e:
+                _LOGGER.error(f"Error serializing non-device entities with self.json: {e}")
+
             data = {
                 "success": True,
                 "devices": devices,
