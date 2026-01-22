@@ -301,26 +301,6 @@ def get_intent_tools():
         types.Tool(
             function_declarations=[
                 types.FunctionDeclaration(
-                    name="HassIntentRaw",
-                    description="Sends a raw intent command to Home Assistant.",
-                    parameters_json_schema={
-                        "type": "OBJECT",
-                        "properties": {
-                            "name": {
-                                "type": "STRING",
-                                "description": "The name of the intent to send.",
-                                "example": "HassTurnOn",
-                            },
-                            "data": {
-                                "type": "OBJECT",
-                                "description": "A key-value map of parameters for the intent.",
-                                "example": {"entity_id": "light.living_room"},
-                            },
-                        },
-                        "required": ["name", "data"],
-                    },
-                ),
-                types.FunctionDeclaration(
                     name="ProxySetState",
                     description="Changes the state of a device. Use this to turn things on/off, lock/unlock locks, or open/close covers. [name, area, area+name, area+domain, area+device_class, device_class+domain]",
                     parameters_json_schema={
@@ -630,6 +610,7 @@ def get_intent_tools():
                         "required": ["action"],
                     },
                 ),
+                # Helper / Info Tools
                 types.FunctionDeclaration(
                     name="GetDateTime", description="Returns current date and time."
                 ),
@@ -655,6 +636,27 @@ def get_intent_tools():
                                 ],
                             },
                         },
+                    },
+                ),
+                
+                types.FunctionDeclaration(
+                    name="HassIntentRaw",
+                    description="Sends a raw intent command to Home Assistant.",
+                    parameters_json_schema={
+                        "type": "OBJECT",
+                        "properties": {
+                            "name": {
+                                "type": "STRING",
+                                "description": "The name of the intent to send.",
+                                "example": "HassTurnOn",
+                            },
+                            "data": {
+                                "type": "OBJECT",
+                                "description": "A key-value map of parameters for the intent.",
+                                "example": {"entity_id": "light.living_room"},
+                            },
+                        },
+                        "required": ["name", "data"],
                     },
                 ),
             ]

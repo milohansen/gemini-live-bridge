@@ -65,7 +65,7 @@ INDEX_HTML = """
         <button onclick="fetchTools()">List Tools</button>
         <div style="text-align: left; margin-top: 15px;">
             <strong>Result:</strong>
-            <pre id="toolsOutput" style="background: #f4f4f4; padding: 10px; border-radius: 4px; min-height: 40px;">...</pre>
+            <pre id="toolsOutput" style="background: #f4f4f4; padding: 10px; border-radius: 4px; min-height: 40px; overflow: auto; max-height: 90vh;">...</pre>
         </div>
     </div>
 
