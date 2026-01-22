@@ -192,7 +192,17 @@ class GeminiEntitiesView(http_helpers.HomeAssistantView):
                     continue
                 entity_entry = ent_reg.async_get(state.entity_id)
 
-                entity_dict = state.as_dict() # Use state.as_dict() to ensure clean base
+
+                entity_dict = {}
+                try:
+                  entity_dict = state.as_dict() # Use state.as_dict() to ensure clean base
+                except Exception as e:
+                    _LOGGER.error(f"Error converting state to dict for {state.entity_id}: {e}")
+                    entity_dict = {
+                        "entity_id": state.entity_id,
+                        "state": state.state,
+                        "attributes": state.attributes,
+                    }
 
                 if entity_entry:
                     # entity_dict = {
@@ -200,11 +210,14 @@ class GeminiEntitiesView(http_helpers.HomeAssistantView):
                     #     "name": state.name,
                     #     "friendly_name": state.attributes.get("friendly_name", ""),
                     # }
-                    entity_dict.update({
-                        **entity_entry.extended_dict,
-                        "name": state.name,
-                        "friendly_name": state.attributes.get("friendly_name", ""),
-                    })
+                    try:
+                      entity_dict.update({
+                          **entity_entry.extended_dict,
+                          "name": state.name,
+                          "friendly_name": state.attributes.get("friendly_name", ""),
+                      })
+                    except Exception as e:
+                        _LOGGER.error(f"Error updating entity_dict for {state.entity_id}: {e}")
 
                 if entity_entry and entity_entry.device_id:
                     if entity_entry.device_id not in devices:
