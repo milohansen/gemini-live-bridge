@@ -5,7 +5,7 @@ import logging
 # import voluptuous as vol
 from aiohttp.web import Request, Response
 
-# from voluptuous_openapi import convert
+from voluptuous_openapi import convert
 from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers import http as http_helpers
@@ -114,7 +114,7 @@ class GeminiToolsView(http_helpers.HomeAssistantView):
             # We assume the default LLM API for Home Assistant
             # llm_apis = llm.async_get_apis(hass)
 
-            exposed_entities = llm._get_exposed_entities(hass, "assist")
+            # exposed_entities = llm._get_exposed_entities(hass, "assist")
             api = llm.AssistAPI(hass)
 
             llm_api = await api.async_get_api_instance(llm_context)
@@ -128,12 +128,14 @@ class GeminiToolsView(http_helpers.HomeAssistantView):
             gemini_tools = []
 
             for tool in tools:
-                # tool_def = {
-                #     "name": tool.name,
-                #     "description": tool.description,
-                #     "parameters": convert(tool.parameters, custom_serializer=llm_api.custom_serializer),
-                # }
-                tool_def = conversation._format_tool(tool, llm_api.custom_serializer)
+                tool_def = {
+                    "name": tool.name,
+                    "description": tool.description,
+                    "parameters": convert(
+                        tool.parameters, custom_serializer=llm_api.custom_serializer
+                    ),
+                }
+                # tool_def = conversation._format_tool(tool, llm_api.custom_serializer)
                 gemini_tools.append(tool_def)
 
             return self.json({"success": True, "tools": gemini_tools})
@@ -194,12 +196,15 @@ class GeminiEntitiesView(http_helpers.HomeAssistantView):
                     continue
                 entity_entry = ent_reg.async_get(state.entity_id)
 
-
                 entity_dict = {}
                 try:
-                  entity_dict = state.as_dict() # Use state.as_dict() to ensure clean base
+                    entity_dict.update(
+                        state.as_dict()
+                    )  # Use state.as_dict() to ensure clean base
                 except Exception as e:
-                    _LOGGER.error(f"Error converting state to dict for {state.entity_id}: {e}")
+                    _LOGGER.error(
+                        f"Error converting state to dict for {state.entity_id}: {e}"
+                    )
                     entity_dict = {
                         "entity_id": state.entity_id,
                         "state": state.state,
@@ -213,13 +218,19 @@ class GeminiEntitiesView(http_helpers.HomeAssistantView):
                     #     "friendly_name": state.attributes.get("friendly_name", ""),
                     # }
                     try:
-                      entity_dict.update({
-                          **entity_entry.extended_dict,
-                          "name": state.name,
-                          "friendly_name": state.attributes.get("friendly_name", ""),
-                      })
+                        entity_dict.update(
+                            {
+                                **entity_entry.extended_dict,
+                                "name": state.name,
+                                "friendly_name": state.attributes.get(
+                                    "friendly_name", ""
+                                ),
+                            }
+                        )
                     except Exception as e:
-                        _LOGGER.error(f"Error updating entity_dict for {state.entity_id}: {e}")
+                        _LOGGER.error(
+                            f"Error updating entity_dict for {state.entity_id}: {e}"
+                        )
 
                 if entity_entry and entity_entry.device_id:
                     if entity_entry.device_id not in devices:
@@ -246,10 +257,12 @@ class GeminiEntitiesView(http_helpers.HomeAssistantView):
                 _LOGGER.warning("Successfully serialized devices with orjson")
             except Exception as e:
                 _LOGGER.error(f"Error serializing devices with orjson: {e}")
-            
+
             try:
                 orjson.dumps(non_device_entities)
-                _LOGGER.warning("Successfully serialized non-device entities with orjson")
+                _LOGGER.warning(
+                    "Successfully serialized non-device entities with orjson"
+                )
             except Exception as e:
                 _LOGGER.error(f"Error serializing non-device entities with orjson: {e}")
 
@@ -258,19 +271,23 @@ class GeminiEntitiesView(http_helpers.HomeAssistantView):
                 _LOGGER.warning("Successfully serialized devices with self.json")
             except Exception as e:
                 _LOGGER.error(f"Error serializing devices with self.json: {e}")
-            
+
             try:
                 self.json(non_device_entities)
-                _LOGGER.warning("Successfully serialized non-device entities with self.json")
+                _LOGGER.warning(
+                    "Successfully serialized non-device entities with self.json"
+                )
             except Exception as e:
-                _LOGGER.error(f"Error serializing non-device entities with self.json: {e}")
+                _LOGGER.error(
+                    f"Error serializing non-device entities with self.json: {e}"
+                )
 
             data = {
                 "success": True,
                 "devices": devices,
                 "non_device_entities": non_device_entities,
             }
-            
+
             # orjson.dumps returns bytes
             json_bytes = orjson.dumps(data)
             return Response(body=json_bytes, content_type="application/json")
