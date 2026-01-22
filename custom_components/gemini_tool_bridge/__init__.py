@@ -37,6 +37,8 @@ async def async_setup(hass: HomeAssistant, config: dict):
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     """Set up Gemini Tool Bridge from a config entry."""
 
+    _LOGGER.info("Setting up Gemini Tool Bridge from config entry")
+
     # Register the HTTP View (The API endpoint)
     # We check if it's already registered to avoid errors on reload
     tools_view = GeminiToolsView()
