@@ -9,7 +9,7 @@ from google.genai import types
 import onnxruntime
 from aiohttp import web
 
-from tools import get_tools, ToolHandler, HomeAssistantClient
+from tools import fetch_entities_via_http, get_tools, ToolHandler, HomeAssistantClient
 from device_context import STATIC_DEVICE_CONTEXT
 from web import WebHandler
 
@@ -237,8 +237,10 @@ class AudioProxy:
         logger.info("Waiting for ESP32 connection before connecting to Gemini...")
         await self.connection_active.wait()
 
+        context = await fetch_entities_via_http()
+
         base_instruction = "You are a helpful and friendly AI assistant. Be concise."
-        full_system_instruction = f"{base_instruction}\n\n{STATIC_DEVICE_CONTEXT}"
+        full_system_instruction = f"{base_instruction}\n\n{context}"
 
         config = types.LiveConnectConfig(
             response_modalities=["AUDIO"],
