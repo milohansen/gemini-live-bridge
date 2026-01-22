@@ -209,20 +209,21 @@ class GeminiEntitiesView(http_helpers.HomeAssistantView):
                 }
 
                 if entity_entry:
+                    entity_dict = entity_entry.extended_dict
                     # entity_dict.update(entity_entry.extended_dict)
-                    entity_dict.update(
-                        {
-                            "area_id": entity_entry.area_id,
-                            "device_id": entity_entry.device_id,
-                            "original_name": entity_entry.original_name,
-                            "aliases": list(entity_entry.aliases),
-                            "platform": entity_entry.platform,
-                            "unique_id": entity_entry.unique_id,
-                            "labels": list(entity_entry.labels),
-                            "categories": list(entity_entry.categories),
-                            "capabilities": entity_entry.capabilities,
-                        }
-                    )
+                    # entity_dict.update(
+                    #     {
+                    #         "area_id": entity_entry.area_id,
+                    #         "device_id": entity_entry.device_id,
+                    #         "original_name": entity_entry.original_name,
+                    #         "aliases": list(entity_entry.aliases),
+                    #         "platform": entity_entry.platform,
+                    #         "unique_id": entity_entry.unique_id,
+                    #         "labels": list(entity_entry.labels),
+                    #         "categories": list(entity_entry.categories),
+                    #         "capabilities": entity_entry.capabilities,
+                    #     }
+                    # )
 
                 if entity_entry and entity_entry.device_id:
                     if entity_entry.device_id not in devices:
