@@ -228,21 +228,25 @@ class GeminiEntitiesView(http_helpers.HomeAssistantView):
 
             try:
                 orjson.dumps(devices)
+                _LOGGER.warning("Successfully serialized devices with orjson")
             except Exception as e:
                 _LOGGER.error(f"Error serializing devices with orjson: {e}")
             
             try:
                 orjson.dumps(non_device_entities)
+                _LOGGER.warning("Successfully serialized non-device entities with orjson")
             except Exception as e:
                 _LOGGER.error(f"Error serializing non-device entities with orjson: {e}")
 
             try:
                 self.json(devices)
+                _LOGGER.warning("Successfully serialized devices with self.json")
             except Exception as e:
                 _LOGGER.error(f"Error serializing devices with self.json: {e}")
             
             try:
                 self.json(non_device_entities)
+                _LOGGER.warning("Successfully serialized non-device entities with self.json")
             except Exception as e:
                 _LOGGER.error(f"Error serializing non-device entities with self.json: {e}")
 
