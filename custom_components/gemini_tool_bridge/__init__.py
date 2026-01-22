@@ -1,6 +1,7 @@
 """The Gemini Tool Bridge integration."""
 
 import logging
+import traceback
 
 # import voluptuous as vol
 from aiohttp.web import Request, Response
@@ -300,4 +301,6 @@ class GeminiEntitiesView(http_helpers.HomeAssistantView):
 
         except Exception as e:
             _LOGGER.error(f"Error fetching entities: {e}")
+            error_trace = traceback.format_exc()
+            _LOGGER.error(f"Traceback: {error_trace}")
             return self.json({"success": False, "error": str(e)})
