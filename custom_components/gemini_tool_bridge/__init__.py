@@ -181,8 +181,8 @@ class GeminiEntitiesView(http_helpers.HomeAssistantView):
             ent_reg = er.async_get(hass)
             dev_reg = dr.async_get(hass)
 
-            await ent_reg.async_load()
-            await dev_reg.async_load()
+            # await ent_reg.async_load()
+            # await dev_reg.async_load()
 
             all_states = hass.states.async_all()
             ee = ha_exposed_entities.ExposedEntities(hass)
@@ -201,23 +201,23 @@ class GeminiEntitiesView(http_helpers.HomeAssistantView):
                     continue
                 entity_entry = ent_reg.async_get(state.entity_id)
 
-                entity_dict = None
-                # entity_dict = {
-                #     "entity_id": state.entity_id,
-                #     "state": state.state,
-                #     "name": state.name,
-                #     "friendly_name": state.attributes.get("friendly_name"),
-                #     # "attributes": state.attributes,
-                # }
+                # entity_dict = None
+                entity_dict = {
+                    "entity_id": state.entity_id,
+                    "state": state.state,
+                    "name": state.name,
+                    "friendly_name": state.attributes.get("friendly_name"),
+                    # "attributes": state.attributes,
+                }
 
                 if entity_entry:
-                    try:
-                        entity_dict = entity_entry.extended_dict
-                    except Exception as e:
-                        _LOGGER.warning(
-                            f"Error getting extended_dict for entity {entity_entry.entity_id}: {e}"
-                        )
-                    # entity_dict.update(entity_entry.extended_dict)
+                    # try:
+                    #     entity_dict = entity_entry.extended_dict
+                    # except Exception as e:
+                    #     _LOGGER.warning(
+                    #         f"Error getting extended_dict for entity {entity_entry.entity_id}: {e}"
+                    #     )
+                    entity_dict.update(entity_entry.extended_dict)
                     # entity_dict.update(
                     #     {
                     #         "area_id": entity_entry.area_id,
