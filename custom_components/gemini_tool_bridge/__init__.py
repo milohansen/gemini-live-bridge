@@ -171,6 +171,9 @@ class GeminiEntitiesView(http_helpers.HomeAssistantView):
             ent_reg = er.async_get(hass)
             dev_reg = dr.async_get(hass)
 
+            await ent_reg.async_load()
+            await dev_reg.async_load()
+
             all_states = hass.states.async_all()
             ee = ha_exposed_entities.ExposedEntities(hass)
             await ee._async_load_data()
