@@ -7,9 +7,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-STATIC_DEVICE_CONTEXT_PREFIX = (
-    "Smart Home Device Context: An overview of the areas and the devices in this smart home:"
-)
+STATIC_DEVICE_CONTEXT_PREFIX = "Smart Home Device Context: An overview of the areas and the devices in this smart home:"
 DEVICE_CONTEXT_PREFIX_LINES = [
     "Smart Home Device Context: An overview of the areas and the devices in this smart home:",
     "",
@@ -61,7 +59,9 @@ def generate_device_context(data):
                 domain = entity_id.split(".")[0]
 
                 if entity_id == "sensor.home_assistant_voice_co2":
-                    logger.info(f"friendly_name for {entity_id}: {friendly_name}, area: {area}")
+                    logger.info(
+                        f"friendly_name for {entity_id}: {friendly_name}, area: {area}"
+                    )
 
                 if friendly_name.lower().startswith(area.replace("_", " ").lower()):
                     # If the entity name starts with the area name, strip it to be concise.
@@ -69,7 +69,9 @@ def generate_device_context(data):
                     # Clean up common separators like ": " or "- " using regex
                     short_name = re.sub(r"^[:\-\s]+", "", short_name)
 
-                    logger.info(f"Shortened '{friendly_name}' to '{short_name}' in area '{area}'")
+                    logger.info(
+                        f"Shortened '{friendly_name}' to '{short_name}' in area '{area}'"
+                    )
 
                     if short_name:
                         friendly_name = short_name
@@ -154,33 +156,8 @@ def generate_grouped_device_context(data):
             entity_strings = []
             for entity in entities:
                 eid = entity.get("entity_id")
-                friendly_name = entity.get("attributes", {}).get("friendly_name") or eid
 
-                # Naming Logic:
-                # If the entity name starts with the device name, strip it to be concise.
-                # Example: Device="IKEA Monitor", Entity="IKEA Monitor Temperature" -> "Temperature"
-                label = friendly_name
-                if device_name and friendly_name.lower().startswith(
-                    device_name.lower()
-                ):
-                    # Remove the device name from the start
-                    short_name = friendly_name[len(device_name) :].strip()
-                    # Clean up common separators like ": " or "- " using regex
-                    short_name = re.sub(r"^[:\-\s]+", "", short_name)
-
-                    if short_name:
-                        label = short_name
-                
-                # Additional check to remove area name redundancy
-                # E.g., Area="Living Room", Entity="Living Room Lamp" -> "Lamp"
-                if area and label.lower().startswith(area.replace("_", " ").lower()):
-                    # If the entity name starts with the area name, strip it to be concise.
-                    short_name = label[len(area) :].strip()
-                    # Clean up common separators like ": " or "- " using regex
-                    short_name = re.sub(r"^[:\-\s]+", "", short_name)
-
-                    if short_name:
-                        label = short_name
+                label = get_entity_name(entity, device_name, area)
 
                 entity_strings.append(f"{label} ({eid})")
 
@@ -202,9 +179,13 @@ def generate_grouped_device_context(data):
     if "non_device_entities" in data:
         for entity in data["non_device_entities"]:
             eid = entity.get("entity_id")
-            friendly_name = entity.get("attributes", {}).get("friendly_name") or eid
-            # These usually go to General since they lack area_id in this specific JSON schema
-            add_to_map("General / Unassigned", f"- {friendly_name} ({eid})")
+            area = entity.get("area_id")
+            label = get_entity_name(entity, None, area)
+            if area:
+                add_to_map(area, f"- {label} ({eid})")
+            else:
+              # These usually go to General since they lack area_id in this specific JSON schema
+              add_to_map("General / Unassigned", f"- {label} ({eid})")
 
     # 3. Build Output
     lines = [*DEVICE_CONTEXT_PREFIX_LINES, ""]
@@ -222,6 +203,38 @@ def generate_grouped_device_context(data):
         lines.append("")
 
     return "\n".join(lines)
+
+
+def get_entity_name(entity, device_name=None, area_name=None):
+    """
+    Helper to get a cleaned up entity name.
+    Strips device and area names from the start if present.
+    """
+    friendly_name = (
+        entity.get("friendly_name")
+        or entity.get("name")
+        or entity.get("original_name")
+        or entity.get("entity_id")
+    )
+    name = friendly_name
+
+    # Naming Logic:
+    # If the entity name starts with the device name, strip it to be concise.
+    # Example: Device="IKEA Monitor", Entity="IKEA Monitor Temperature" -> "Temperature"
+    if device_name and name.lower().startswith(device_name.lower()):
+        short_name = name[len(device_name) :].strip()
+        short_name = re.sub(r"^[:\-\s]+", "", short_name)
+        if short_name:
+            name = short_name
+
+    # Similarly for area name
+    if area_name and name.lower().startswith(area_name.replace("_", " ").lower()):
+        short_name = name[len(area_name) :].strip()
+        short_name = re.sub(r"^[:\-\s]+", "", short_name)
+        if short_name:
+            name = short_name
+
+    return name
 
 
 STATIC_DEVICE_CONTEXT = """
