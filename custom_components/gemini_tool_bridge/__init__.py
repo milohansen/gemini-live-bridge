@@ -205,7 +205,7 @@ class GeminiEntitiesView(http_helpers.HomeAssistantView):
                     "state": state.state,
                     "name": state.name,
                     "friendly_name": state.attributes.get("friendly_name"),
-                    "attributes": state.attributes,
+                    # "attributes": state.attributes,
                 }
 
                 if entity_entry:
@@ -215,7 +215,7 @@ class GeminiEntitiesView(http_helpers.HomeAssistantView):
                             "area_id": entity_entry.area_id,
                             "device_id": entity_entry.device_id,
                             "original_name": entity_entry.original_name,
-                            "aliases": entity_entry.aliases,
+                            "aliases": list(entity_entry.aliases),
                             "platform": entity_entry.platform,
                             "unique_id": entity_entry.unique_id,
                             "labels": list(entity_entry.labels),
@@ -223,20 +223,6 @@ class GeminiEntitiesView(http_helpers.HomeAssistantView):
                             "capabilities": entity_entry.capabilities,
                         }
                     )
-                    # try:
-                    #     entity_dict.update(
-                    #         {
-                    #             **entity_entry.extended_dict,
-                    #             "name": state.name,
-                    #             "friendly_name": state.attributes.get(
-                    #                 "friendly_name", ""
-                    #             ),
-                    #         }
-                    #     )
-                    # except Exception as e:
-                    #     _LOGGER.error(
-                    #         f"Error updating entity_dict for {state.entity_id}: {e}"
-                    #     )
 
                 if entity_entry and entity_entry.device_id:
                     if entity_entry.device_id not in devices:
@@ -260,31 +246,31 @@ class GeminiEntitiesView(http_helpers.HomeAssistantView):
 
             try:
                 orjson.dumps(devices)
-                _LOGGER.warning("Successfully serialized devices with orjson")
+                _LOGGER.info("Successfully serialized devices with orjson")
             except Exception as e:
-                _LOGGER.error(f"Error serializing devices with orjson: {e}")
+                _LOGGER.warning(f"Error serializing devices with orjson: {e}")
 
             try:
                 orjson.dumps(non_device_entities)
-                _LOGGER.warning(
+                _LOGGER.info(
                     "Successfully serialized non-device entities with orjson"
                 )
             except Exception as e:
-                _LOGGER.error(f"Error serializing non-device entities with orjson: {e}")
+                _LOGGER.warning(f"Error serializing non-device entities with orjson: {e}")
 
             try:
                 self.json(devices)
-                _LOGGER.warning("Successfully serialized devices with self.json")
+                _LOGGER.info("Successfully serialized devices with self.json")
             except Exception as e:
-                _LOGGER.error(f"Error serializing devices with self.json: {e}")
+                _LOGGER.warning(f"Error serializing devices with self.json: {e}")
 
             try:
                 self.json(non_device_entities)
-                _LOGGER.warning(
+                _LOGGER.info(
                     "Successfully serialized non-device entities with self.json"
                 )
             except Exception as e:
-                _LOGGER.error(
+                _LOGGER.warning(
                     f"Error serializing non-device entities with self.json: {e}"
                 )
 
