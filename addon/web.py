@@ -29,7 +29,7 @@ INDEX_HTML = """
 </html>
 """
 
-with open("./web.html", "r") as f:
+with open("app/web.html", "r") as f:
     INDEX_HTML = f.read()
 
 
