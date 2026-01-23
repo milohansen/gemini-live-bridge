@@ -149,7 +149,8 @@ class GeminiSession:
             except Exception as e:
                 logger.error(f"[{self.id}] Send Error: {e}")
                 break
-        self.running = False
+        if self.task:
+          self.task.cancel()
 
     async def receiver_task(self, session: live.AsyncSession):
         while self.running:
@@ -193,12 +194,22 @@ class GeminiSession:
                         if server_content.turn_complete:
                             self.ai_is_speaking = False
 
+                        if server_content.output_transcription:
+                            logger.info(
+                                f"Transcript (Output): {server_content.output_transcription.text}"
+                            )
+                        if server_content.input_transcription:
+                            logger.info(
+                                f"Transcript (Input): {server_content.input_transcription.text}"
+                            )
+
             except asyncio.CancelledError:
                 break
             except Exception as e:
                 logger.error(f"[{self.id}] Receive Error: {e}")
                 break
-        self.running = False
+        if self.task:
+          self.task.cancel()
 
     async def speaker_output_task(self):
         """Sends audio back to the specific UDP address for this session."""
@@ -220,4 +231,5 @@ class GeminiSession:
                 break
             except Exception as e:
                 logger.error(f"[{self.id}] UDP Send Error: {e}")
-        self.running = False
+        if self.task:
+          self.task.cancel()
