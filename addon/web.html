@@ -79,16 +79,6 @@
       <div id="status">Ready</div>
     </div>
 
-    <!-- <div id="directContextSection" class="section hidden">
-      <h3>Direct Connect Session Details</h3>
-      <div style="text-align: left">
-        <strong>Context:</strong>
-        <pre id="contextOutput" style="background: #f4f4f4; padding: 10px; border-radius: 4px; min-height: 40px; overflow: auto; max-height: 30vh">...</pre>
-        <strong>Tools:</strong>
-        <pre id="directToolsOutput" style="background: #f4f4f4; padding: 10px; border-radius: 4px; min-height: 40px; overflow: auto; max-height: 30vh">...</pre>
-      </div>
-    </div> -->
-
     <div class="section">
       <h3>Manual Tool Test (Requires Bridge)</h3>
       <p>Select a tool and provide JSON arguments to test execution.</p>
@@ -119,6 +109,15 @@
         <strong>Result:</strong>
         <pre id="toolOutput" style="background: #f4f4f4; padding: 10px; border-radius: 4px; min-height: 40px">...</pre>
       </div>
+    </div>
+    
+
+    <div id="modelConfigSection" class="section">
+      <div style="text-align: left">
+        <strong>Config:</strong>
+        <pre id="config" style="background: #f4f4f4; padding: 10px; border-radius: 4px; min-height: 40px; overflow: auto; max-height: 80vh">...</pre>
+      </div>
+      <button onclick="loadConfig()">Load</button>
     </div>
 
     <script>
@@ -344,6 +343,23 @@
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ name: name, args: args }),
+          });
+
+          const result = await response.text();
+          output.innerText = result;
+        } catch (err) {
+          output.innerText = "Error: " + err.message;
+        }
+      }
+      
+      async function loadConfig() {
+        const output = document.getElementById("config");
+
+        output.innerText = "Loading...";
+
+        try {
+          const response = await fetch("/config", {
+            method: "GET",
           });
 
           const result = await response.text();

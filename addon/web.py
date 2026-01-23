@@ -1,3 +1,4 @@
+from html import entities
 import logging
 import traceback
 from aiohttp import web, WSMsgType, ClientSession
@@ -60,6 +61,29 @@ class WebHandler:
                         error_text = await resp.text()
                         logger.error(f"Failed to create session: {resp.status} {error_text}")
                         return web.json_response({"success": False, "error": error_text}, status=resp.status)
+
+        except Exception as e:
+            logger.error(f"session_handler error: {e}")
+            error_trace = traceback.format_exc()
+            logger.error(f"Traceback: {error_trace}")
+            return web.json_response({"success": False, "error": str(e)}, status=500)
+
+    async def config_handler(self, request: web.Request):
+        """Proxy the session request to the Home Assistant component."""
+        try:
+
+            url = f"{HA_URL}/gemini_live/config"
+            headers = {
+                "Authorization": f"Bearer {HA_TOKEN}",
+            }
+
+            async with ClientSession() as session:
+                async with session.get(url, headers=headers) as resp:
+                    if resp.status == 200:
+                        return web.Response(text=str(await resp.text()))
+                    else:
+                        error_text = await resp.text()
+                        raise Exception(f"Failed to get config: {resp.status} {error_text}")
 
         except Exception as e:
             logger.error(f"session_handler error: {e}")
