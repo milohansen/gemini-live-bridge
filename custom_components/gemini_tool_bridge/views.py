@@ -40,9 +40,11 @@ class GeminiSessionView(http_helpers.HomeAssistantView):
         """Handle POST requests to create a session."""
         hass: HomeAssistant = request.app["hass"]
         api_key = self.api_key
-        if request.body_exists:
+        try:
             data = await request.json()
             api_key = data.get("api_key", api_key)
+        except Exception:
+            pass
 
         if not api_key:
             raise ValueError("API key is required")
