@@ -180,4 +180,6 @@ async def get_raw_entities(hass: HomeAssistant):
 async def generate_context_from_ha(hass: HomeAssistant):
     """The main function to get the context string directly from HA."""
     raw_data = await get_raw_entities(hass)
-    return generate_grouped_device_context(raw_data)
+    # This call populates the entity_name_map
+    context = generate_grouped_device_context(raw_data)
+    return context

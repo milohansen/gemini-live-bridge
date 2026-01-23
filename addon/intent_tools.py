@@ -4,7 +4,7 @@ import datetime
 from aiohttp import ClientSession
 import os
 
-from device_context import get_name_for_entity
+from context import get_context
 
 # Reuse logger and constants from tools.py
 logger = logging.getLogger(__name__)
@@ -20,36 +20,21 @@ class HomeAssistantClient:
             "Authorization": f"Bearer {HA_TOKEN}",
             "Content-Type": "application/json",
         }
-        self.entities = {}  # Cache for name resolution
+        self.entities = {}
+        self.entity_name_map = {}
 
-    async def get_states(self):
-        """Fetch all states from Home Assistant."""
-        if not HA_TOKEN:
-            logger.error("SUPERVISOR_TOKEN not found. Cannot fetch HA states.")
-            return []
-
-        async with ClientSession() as session:
-            try:
-                async with session.get(
-                    f"{HA_URL}/states", headers=self.headers
-                ) as resp:
-                    if resp.status == 200:
-                        states = await resp.json()
-                        # Update name cache
-                        for state in states:
-                            if "friendly_name" in state.get("attributes", {}):
-                                self.entities[
-                                    state["attributes"]["friendly_name"].lower()
-                                ] = state["entity_id"]
-                        return states
-                    else:
-                        logger.error(
-                            f"Failed to fetch states: [{resp.status}] {await resp.text()}"
-                        )
-                        return []
-            except Exception as e:
-                logger.error(f"HA API Error: {e}")
-                return []
+    async def fetch_name_map(self):
+        """Fetches the entity name map from the custom component."""
+        logger.info("Fetching entity name map...")
+        try:
+            raw_data = await get_context(raw=True)
+            if raw_data and 'entity_name_map' in raw_data:
+                self.entity_name_map = raw_data['entity_name_map']
+                # Create a reverse map for convenience
+                self.entities = {v.lower(): k for k, v in self.entity_name_map.items()}
+                logger.info(f"Successfully fetched name map for {len(self.entity_name_map)} entities.")
+        except Exception as e:
+            logger.error(f"Failed to fetch entity name map: {e}")
 
     async def get_state(self, entity_id):
         """Fetch specific state."""
@@ -116,14 +101,11 @@ class IntentToolHandler:
         """Dispatches tool calls to specific intent handlers."""
         logger.info(f"Processing Intent Tool: {tool_name} with args: {args}")
 
-        # Ensure name cache is populated
-        if not self.ha.entities:
-            await self.ha.get_states()
+        if not self.ha.entity_name_map:
+            await self.ha.fetch_name_map()
 
-        # TODO: Only do name resolution for tools that need it
-        if not "name" in args and "entity_id" in args:
-            args["name"] = get_name_for_entity(args["entity_id"])
-            del args["entity_id"]
+        if "entity_id" in args and "name" not in args:
+            args["name"] = self.ha.entity_name_map.get(args["entity_id"], args["entity_id"])
 
         try:
             if tool_name == "HassIntentRaw":

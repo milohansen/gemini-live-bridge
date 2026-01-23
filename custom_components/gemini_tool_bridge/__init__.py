@@ -248,14 +248,19 @@ class GeminiEntitiesView(http_helpers.HomeAssistantView):
         _LOGGER.info("Received POST request for Gemini entities")
 
         try:
+            raw_entities = await get_raw_entities(hass)
+
             # Check content type to decide on response format
             if request.content_type == "application/json":
-                # Raw JSON data for web UI or other tools
-                raw_entities = await get_raw_entities(hass)
-                return self.json({"success": True, **raw_entities})
+                # For the web UI, include the name map
+                return self.json({
+                    "success": True,
+                    **raw_entities,
+                    "entity_name_map": entity_name_map
+                })
             else:
-                # Pre-formatted text for the addon's context
-                formatted_context = await generate_context_from_ha(hass)
+                # For the addon, generate the formatted context string
+                formatted_context = generate_grouped_device_context(raw_entities)
                 return web.Response(text=formatted_context, content_type="text/plain")
 
         except Exception as e:
