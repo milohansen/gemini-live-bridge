@@ -246,7 +246,7 @@ class WebHandler:
             async for msg in ws:
                 if msg.type == WSMsgType.BINARY:
                     # Web client sends Int16 PCM (48kHz)
-                    split_host = request.host.split(":")
+                    split_host = request.get("remote", "unknown").split(":")
                     await self.proxy.process_incoming_audio((split_host[0], split_host[1] if len(split_host) > 1 else "0"), msg.data, WEB_INPUT_RATE, process_return_audio)
                 elif msg.type == WSMsgType.ERROR:
                     logger.error(f"Websocket connection closed with exception {ws.exception()}")
