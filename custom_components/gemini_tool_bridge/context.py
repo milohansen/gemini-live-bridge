@@ -1,5 +1,6 @@
 """Generation of context for the Gemini model."""
 import re
+from typing import TypedDict
 
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr, entity_registry as er
@@ -21,7 +22,7 @@ DEVICE_CONTEXT_PREFIX_LINES = [
     "Smart Home Device Context: An overview of the areas and the devices in this smart home:",
 ]
 
-entity_name_map = {}
+entity_name_map: dict[str, str] = {}
 
 def format_entity_name(entity, device_name=None, area_name=None):
     """
@@ -126,6 +127,11 @@ def generate_grouped_device_context(data):
     return "\n".join(lines)
 
 
+class RawEntities(TypedDict):
+    """Class to hold raw entities data."""
+    devices: dict[str, dict]
+    non_device_entities: list[dict]
+
 async def get_raw_entities(hass: HomeAssistant):
     """
     Fetches and structures entity and device data directly from Home Assistant.
@@ -169,10 +175,7 @@ async def get_raw_entities(hass: HomeAssistant):
         else:
             non_device_entities.append(entity_dict)
 
-    return {
-        "devices": devices,
-        "non_device_entities": non_device_entities,
-    }
+    return RawEntities(devices=devices, non_device_entities=non_device_entities)
 
 async def generate_context_from_ha(hass: HomeAssistant):
     """The main function to get the context string directly from HA."""
