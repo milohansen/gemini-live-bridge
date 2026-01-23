@@ -6,15 +6,9 @@ from homeassistant.core import HomeAssistant, ServiceCall, ServiceResponse, Supp
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.typing import ConfigType
 
-# from homeassistant.helpers import config_validation as cv
-# from homeassistant.components.google_generative_ai_conversation import conversation
-# from homeassistant.components.homeassistant import (
-#     exposed_entities as ha_exposed_entities,
-# )
-
-from gemini import generate_token
-from views import GeminiEntitiesView, GeminiSessionView, GeminiToolsView
 from const import DOMAIN
+from .gemini import generate_token
+from views import GeminiEntitiesView, GeminiSessionView, GeminiToolsView
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -67,3 +61,4 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
     """Unload a config entry."""
     return True
+

@@ -2,7 +2,6 @@
 
 import logging
 import traceback
-import datetime
 
 from aiohttp.web import Request, Response
 from voluptuous_openapi import convert

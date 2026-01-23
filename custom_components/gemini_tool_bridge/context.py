@@ -1,14 +1,11 @@
 """Generation of context for the Gemini model."""
 import re
-import logging
 
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.components.homeassistant import (
     exposed_entities as ha_exposed_entities,
 )
-
-_LOGGER = logging.getLogger(__name__)
 
 DEVICE_CONTEXT_PREFIX_LINES = [
     "You are running on My Display, located in the Office area of an apartment in Jamaica Plain, MA. Use this location for any location-based context like weather or time.",
