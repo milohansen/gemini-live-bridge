@@ -291,7 +291,30 @@ INDEX_HTML = """
 
         // --- Tool Testing ---
         async function executeTool() {
-            /* ... existing implementation ... */
+            const name = document.getElementById('toolName').value;
+            const argsStr = document.getElementById('toolArgs').value || "{}";
+            const output = document.getElementById('toolOutput');
+
+            output.innerText = "Executing...";
+
+            try {
+                // Validate JSON first
+                let args = {};
+                if (argsStr.trim()) {
+                    args = JSON.parse(argsStr);
+                }
+
+                const response = await fetch('/tool', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: name, args: args })
+                });
+
+                const result = await response.text();
+                output.innerText = result;
+            } catch (err) {
+                output.innerText = "Error: " + err.message;
+            }
         }
     </script>
 </body>
