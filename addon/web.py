@@ -332,20 +332,15 @@ class WebHandler:
     async def session_handler(self, request: web.Request):
         """Proxy the session request to the Home Assistant component."""
         try:
-            data = await request.json()
-            api_key = data.get("api_key")
-            if not api_key:
-                return web.json_response({"success": False, "error": "API key is required"}, status=400)
 
             url = f"{HA_URL}/gemini_live/session"
             headers = {
                 "Authorization": f"Bearer {HA_TOKEN}",
                 "Content-Type": "application/json",
             }
-            payload = {"api_key": api_key}
 
             async with ClientSession() as session:
-                async with session.post(url, headers=headers, json=payload) as resp:
+                async with session.post(url, headers=headers) as resp:
                     if resp.status == 200:
                         session_data = await resp.json()
                         return web.json_response(session_data)

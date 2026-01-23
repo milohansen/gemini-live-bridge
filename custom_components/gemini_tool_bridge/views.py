@@ -1,47 +1,27 @@
 """The Gemini Tool Bridge integration."""
 
 import logging
-import os
 import traceback
+import datetime
 
 from aiohttp.web import Request, Response
-
 from voluptuous_openapi import convert
+
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import http as http_helpers
 from homeassistant.helpers import llm
 
-import datetime
+import google.genai as genai
 
-# from homeassistant.helpers import config_validation as cv
-# from homeassistant.components.google_generative_ai_conversation import conversation
-# from homeassistant.components.homeassistant import (
-#     exposed_entities as ha_exposed_entities,
-# )
 from context import (
-    generate_context_from_ha,
     generate_grouped_device_context,
     get_raw_entities,
     entity_name_map,
 )
-
 from const import DOMAIN
-import google.genai as genai
+from gemini import generate_token
 
 _LOGGER = logging.getLogger(__name__)
-
-# THIS WON'T WORK BUT I DON'T KNOW HOW TO GET IT FROM CONFIG FLOW HERE
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
-
-if not GEMINI_API_KEY and os.path.exists("/data/options.json"):
-    try:
-        import json
-
-        with open("/data/options.json", "r") as f:
-            options = json.load(f)
-            GEMINI_API_KEY = options.get("gemini_api_key")
-    except Exception:
-        pass
 
 
 class GeminiSessionView(http_helpers.HomeAssistantView):
@@ -51,12 +31,14 @@ class GeminiSessionView(http_helpers.HomeAssistantView):
     name = "api:gemini_live:session"
     requires_auth = True
 
-    gemini_client = genai.Client(
-        http_options={
-            "api_version": "v1alpha",
-        },
-        api_key=GEMINI_API_KEY,
-    )
+    def __init__(self, api_key: str) -> None:
+        super().__init__()
+        self.gemini_client = genai.Client(
+            http_options={
+                "api_version": "v1alpha",
+            },
+            api_key=api_key,
+        )
 
     async def post(self, request: Request):
         """Handle POST requests to create a session."""
@@ -64,52 +46,25 @@ class GeminiSessionView(http_helpers.HomeAssistantView):
         data = await request.json()
         api_key = data.get("api_key")
 
-        if not api_key:
-            return self.json(
-                {"success": False, "error": "API key is required"}, status_code=400
+        client = self.gemini_client
+
+        if api_key:
+            client = genai.Client(
+                http_options={
+                    "api_version": "v1alpha",
+                },
+                api_key=api_key,
             )
 
         _LOGGER.info("Received request for a new Gemini session")
 
         try:
-            # 1. Generate context and tools
-            context = await generate_context_from_ha(hass)
-
-            tools_view = GeminiToolsView()
-            llm_context = tools_view._get_llm_context()
-            api = llm.AssistAPI(hass)
-            llm_api = await api.async_get_api_instance(llm_context)
-            tools = llm_api.tools
-
-            gemini_tools = []
-            for tool in tools:
-                tool_def = {
-                    "name": tool.name,
-                    "description": tool.description,
-                    "parameters": convert(
-                        tool.parameters, custom_serializer=llm_api.custom_serializer
-                    ),
-                }
-                gemini_tools.append(tool_def)
-
-            # 2. Create ephemeral token
-
-            now = datetime.datetime.now(tz=datetime.timezone.utc)
-
-            token = self.gemini_client.auth_tokens.create(
-                uses=10,
-                expire_time=now + datetime.timedelta(hours=20),
-                new_session_expire_time=now + datetime.timedelta(hours=1),
-                http_options={"api_version": "v1alpha"},
-                live_connect_constraints={},
-            )
+            token = await generate_token(client, hass)
 
             return self.json(
                 {
                     "success": True,
                     "token": token.name,
-                    "context": context,
-                    "tools": gemini_tools,
                 }
             )
 

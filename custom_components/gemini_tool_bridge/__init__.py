@@ -2,8 +2,9 @@
 
 import logging
 
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, ServiceCall, ServiceResponse, SupportsResponse
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.helpers.typing import ConfigType
 
 # from homeassistant.helpers import config_validation as cv
 # from homeassistant.components.google_generative_ai_conversation import conversation
@@ -11,12 +12,14 @@ from homeassistant.config_entries import ConfigEntry
 #     exposed_entities as ha_exposed_entities,
 # )
 
+from gemini import generate_token
 from views import GeminiEntitiesView, GeminiSessionView, GeminiToolsView
+from const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
 
-async def async_setup(hass: HomeAssistant, config: dict):
+async def async_setup(hass: HomeAssistant, config: ConfigType):
     """Set up the Gemini Tool Bridge component."""
     _LOGGER.info("Setting up Gemini Tool Bridge component")
 
@@ -40,13 +43,23 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     # We check if it's already registered to avoid errors on reload
     tools_view = GeminiToolsView()
     entities_view = GeminiEntitiesView()
-    session_view = GeminiSessionView()
+    session_view = GeminiSessionView(entry.data["api_key"])
     try:
         hass.http.register_view(tools_view)
         hass.http.register_view(entities_view)
         hass.http.register_view(session_view)
     except ValueError:
         pass  # Already registered
+
+
+    async def get_token_action(call: ServiceCall) -> ServiceResponse:
+        """Handle the service action call."""
+        token = await generate_token(session_view.gemini_client, hass)
+        return {
+            "token": token.name
+        }
+
+    hass.services.async_register(DOMAIN, "get_token", get_token_action, supports_response=SupportsResponse.ONLY)
 
     return True
 
