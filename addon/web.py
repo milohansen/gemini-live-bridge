@@ -2,7 +2,7 @@ import logging
 import traceback
 from aiohttp import web, WSMsgType, ClientSession
 
-from audio import WEB_INPUT_RATE
+# from audio import WEB_INPUT_RATE
 from context import get_context, HA_URL, HA_TOKEN
 from intent_tools import IntentToolHandler, get_intent_tools
 

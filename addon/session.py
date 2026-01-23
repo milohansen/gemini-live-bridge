@@ -6,7 +6,7 @@ from google import genai
 from google.genai import types, live
 
 from logger import logger
-from audio import ESP_OUTPUT_RATE, GEMINI_INPUT_RATE, GEMINI_OUTPUT_RATE, resample_audio
+from audio import ESP_INPUT_RATE, ESP_OUTPUT_RATE, GEMINI_INPUT_RATE, GEMINI_OUTPUT_RATE, resample_audio
 from vad import VAD_CHUNK_SIZE_BYTES, VADWrapper
 from intent_tools import get_intent_tools, IntentToolHandler
 from device_context import fetch_context_via_http

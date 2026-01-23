@@ -1,4 +1,4 @@
-from .context import get_context
+from context import get_context
 
 # This file is kept for backwards compatibility, but the core logic has been
 # moved to context.py. New code should import from there directly.

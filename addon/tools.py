@@ -1,6 +1,6 @@
 import datetime
 import traceback
-from .context import get_context
+from context import get_context
 from google.genai import types
 import logging
 import os
