@@ -8,10 +8,10 @@ from homeassistant.core import HomeAssistant
 import google.genai as genai
 from google.genai import types
 
-from context import (
+from .context import (
     generate_context_from_ha,
 )
-from intent_tools import get_intent_tools
+from .intent_tools import get_intent_tools
 
 _LOGGER = logging.getLogger(__name__)
 

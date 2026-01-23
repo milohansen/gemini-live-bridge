@@ -12,13 +12,13 @@ from homeassistant.helpers import llm
 
 import google.genai as genai
 
-from context import (
+from .context import (
     generate_grouped_device_context,
     get_raw_entities,
     entity_name_map,
 )
-from const import DOMAIN
-from gemini import generate_token
+from .const import DOMAIN
+from .gemini import generate_token
 
 _LOGGER = logging.getLogger(__name__)
 

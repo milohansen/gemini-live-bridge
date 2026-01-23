@@ -1,6 +1,6 @@
 from homeassistant import config_entries
 import voluptuous as vol
-from const import DOMAIN
+from .const import DOMAIN
 
 class GeminiLiveConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     VERSION = 1
