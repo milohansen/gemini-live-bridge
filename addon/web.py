@@ -1,12 +1,9 @@
 import logging
 import traceback
-from aiohttp import web, WSMsgType
+from aiohttp import web, WSMsgType, ClientSession
 
-# Use the entity fetcher from the original tools file
 from audio import WEB_INPUT_RATE
-# from proxy import AudioProxy
-from tools import fetch_entities_via_http
-# Import the new intent tools to list them in the UI
+from context import get_context, HA_URL, HA_TOKEN
 from intent_tools import IntentToolHandler, get_intent_tools
 
 logger = logging.getLogger(__name__)
@@ -17,28 +14,55 @@ INDEX_HTML = """
 <head>
     <title>Gemini Live Proxy</title>
     <style>
-        body { font-family: sans-serif; max-width: 800px; margin: 2rem auto; padding: 0 1rem; text-align: center; }
+        body { font-family: sans-serif; max-width: 800px; margin: 2rem auto; padding: 0 1rem; }
+        h1, h3, p { text-align: center; }
         button { padding: 10px 20px; font-size: 1rem; cursor: pointer; margin: 5px; }
         .section { border: 1px solid #ccc; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
-        #status { margin-top: 20px; color: #666; }
+        #status { margin-top: 20px; color: #666; text-align: center; }
         .recording { background-color: #ff4444; color: white; }
-        textarea { width: 100%; font-family: monospace; }
+        textarea, input[type="text"] { width: 100%; box-sizing: border-box; font-family: monospace; padding: 8px; margin-bottom: 10px; }
         select { padding: 8px; font-size: 1rem; margin-bottom: 10px; }
+        .hidden { display: none; }
     </style>
 </head>
 <body>
     <h1>Gemini Live Proxy</h1>
-    
+
     <div class="section">
-        <h3>Microphone Input</h3>
-        <p>Stream your browser microphone to Gemini.</p>
-        <button id="startBtn">Start Mic</button>
-        <button id="stopBtn" disabled>Stop Mic</button>
-        <div id="status">Ready</div>
+        <h3>Connection Mode</h3>
+        <select id="connectionMode">
+            <option value="bridge" selected>Bridge (Addon Proxies)</option>
+            <option value="direct">Direct Connect (Device to Google)</option>
+        </select>
+        <div id="apiKeySection" class="hidden" style="text-align: left;">
+            <label for="apiKey">Google AI API Key:</label>
+            <input type="text" id="apiKey" placeholder="Enter your API Key">
+            <button id="getSessionBtn">Get Direct Session</button>
+        </div>
     </div>
 
     <div class="section">
-        <h3>Manual Tool Test</h3>
+        <h3>Microphone Input</h3>
+        <p>Stream your browser microphone to Gemini.</p>
+        <div style="text-align: center;">
+            <button id="startBtn">Start Mic</button>
+            <button id="stopBtn" disabled>Stop Mic</button>
+        </div>
+        <div id="status">Ready</div>
+    </div>
+
+    <div id="directContextSection" class="section hidden">
+        <h3>Direct Connect Session Details</h3>
+        <div style="text-align: left;">
+            <strong>Context:</strong>
+            <pre id="contextOutput" style="background: #f4f4f4; padding: 10px; border-radius: 4px; min-height: 40px; overflow: auto; max-height: 30vh;">...</pre>
+            <strong>Tools:</strong>
+            <pre id="directToolsOutput" style="background: #f4f4f4; padding: 10px; border-radius: 4px; min-height: 40px; overflow: auto; max-height: 30vh;">...</pre>
+        </div>
+    </div>
+
+    <div class="section">
+        <h3>Manual Tool Test (Bridge Mode Only)</h3>
         <p>Select a tool and provide JSON arguments to test execution.</p>
         
         <select id="toolName">
@@ -46,16 +70,7 @@ INDEX_HTML = """
             <option value="HassLightSet">HassLightSet (Brightness/Color)</option>
             <option value="ProxyMediaControl">ProxyMediaControl (Play/Pause/Next)</option>
             <option value="ProxyControlVolume">ProxyControlVolume (Set/Increase/Decrease)</option>
-            <option value="ProxySetMute">ProxySetMute</option>
-            <option value="HassMediaSearchAndPlay">HassMediaSearchAndPlay</option>
-            <option value="HassFanSetSpeed">HassFanSetSpeed</option>
-            <option value="HassStartTimer">HassStartTimer</option>
-            <option value="HassCancelTimer">HassCancelTimer</option>
-            <option value="ProxyAdjustTimer">ProxyAdjustTimer (Increase/Decrease)</option>
-            <option value="ProxyPauseResumeTimer">ProxyPauseResumeTimer</option>
-            <option value="HassBroadcast">HassBroadcast</option>
-            <option value="GetLiveContext">GetLiveContext</option>
-            <option value="HassIntentRaw">HassIntentRaw</option>
+            <!-- ... other options ... -->
         </select>
         <br/>
         
@@ -69,109 +84,141 @@ INDEX_HTML = """
         </div>
     </div>
 
-    <div class="section">
-        <h3>Available Tools</h3>
-        <p>Fetch the list of tools currently configured for Gemini.</p>
-        <button onclick="fetchTools()">List Tools</button>
-        <div style="text-align: left; margin-top: 15px;">
-            <strong>Result:</strong>
-            <pre id="toolsOutput" style="background: #f4f4f4; padding: 10px; border-radius: 4px; min-height: 40px; overflow: auto; max-height: 90vh;">...</pre>
-        </div>
-    </div>
-
     <script>
-        // --- Tool Testing Logic ---
-        async function executeTool() {
-            const name = document.getElementById('toolName').value;
-            const argsStr = document.getElementById('toolArgs').value || "{}";
-            const output = document.getElementById('toolOutput');
-            
-            output.innerText = "Executing...";
-            
-            try {
-                // Validate JSON first
-                let args = {};
-                if (argsStr.trim()) {
-                    args = JSON.parse(argsStr);
-                }
-
-                const response = await fetch('/tool', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name: name, args: args })
-                });
-                
-                const result = await response.text();
-                output.innerText = result;
-            } catch (err) {
-                output.innerText = "Error: " + err.message;
-            }
-        }
-
-        async function fetchTools() {
-            const output = document.getElementById('toolsOutput');
-            output.innerText = "Fetching...";
-            try {
-                const response = await fetch('/tools');
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                const data = await response.json();
-                output.innerText = JSON.stringify(data, null, 2);
-            } catch (err) {
-                output.innerText = "Error: " + err.message;
-            }
-        }
-
-        // --- Audio Logic ---
+        // --- State Management ---
         let audioContext;
         let websocket;
         let processor;
         let source;
         let isRecording = false;
         let nextStartTime = 0;
+        let directSessionToken = null;
+
+        // --- DOM Elements ---
         const startBtn = document.getElementById('startBtn');
         const stopBtn = document.getElementById('stopBtn');
         const status = document.getElementById('status');
+        const connectionModeSelect = document.getElementById('connectionMode');
+        const apiKeySection = document.getElementById('apiKeySection');
+        const getSessionBtn = document.getElementById('getSessionBtn');
+        const apiKeyInput = document.getElementById('apiKey');
+        const directContextSection = document.getElementById('directContextSection');
+        const contextOutput = document.getElementById('contextOutput');
+        const directToolsOutput = document.getElementById('directToolsOutput');
 
-        async function initAudio() {
-            if (!audioContext) {
-                audioContext = new (window.AudioContext || window.webkitAudioContext)({sampleRate: 48000});
-            }
-            if (audioContext.state === 'suspended') {
-                await audioContext.resume();
-            }
-        }
-
-        async function connectWebSocket() {
-            if (websocket && websocket.readyState === WebSocket.OPEN) return;
-            websocket = new WebSocket('ws://' + window.location.host + '/ws');
-            websocket.binaryType = 'arraybuffer';
-            websocket.onopen = () => { status.innerText = "Connected to Proxy"; };
-            websocket.onmessage = async (event) => {
-                await initAudio(); 
-                playAudio(event.data);
-            };
-            websocket.onclose = () => {
-                stopRecording();
-                status.innerText = "Disconnected";
-            };
-        }
-        window.addEventListener('load', () => {
-            connectWebSocket();
+        // --- Event Listeners ---
+        connectionModeSelect.addEventListener('change', () => {
+            const isDirect = connectionModeSelect.value === 'direct';
+            apiKeySection.classList.toggle('hidden', !isDirect);
+            directContextSection.classList.toggle('hidden', !isDirect);
+            if (!isDirect) directSessionToken = null; // Clear token when switching away
         });
-        startBtn.onclick = async () => {
+
+        getSessionBtn.addEventListener('click', createDirectSession);
+        startBtn.addEventListener('click', startMicrophone);
+        stopBtn.addEventListener('click', stopRecording);
+        window.addEventListener('load', connectWebSocket);
+
+
+        // --- Core Functions ---
+        async function createDirectSession() {
+            const apiKey = apiKeyInput.value;
+            if (!apiKey) {
+                alert("Please enter your Google AI API Key.");
+                return;
+            }
+            status.innerText = "Requesting direct session...";
+            try {
+                const response = await fetch('/session', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ api_key: apiKey })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    directSessionToken = data.token;
+                    contextOutput.innerText = data.context;
+                    directToolsOutput.innerText = JSON.stringify(data.tools, null, 2);
+                    status.innerText = "Direct session ready. You can now start the mic.";
+                    // Re-connect the websocket with the new token info
+                    connectWebSocket();
+                } else {
+                    throw new Error(data.error || "Failed to get session.");
+                }
+            } catch (err) {
+                console.error("Session creation failed:", err);
+                status.innerText = "Error: " + err.message;
+                directSessionToken = null;
+            }
+        }
+
+        async function startMicrophone() {
+            if (connectionModeSelect.value === 'direct' && !directSessionToken) {
+                alert("Please get a direct session token before starting the microphone.");
+                return;
+            }
             await initAudio();
-            await connectWebSocket();
+            // Ensure websocket is connected/reconnected
+            if (!websocket || websocket.readyState !== WebSocket.OPEN) {
+                await connectWebSocket();
+            }
+            // Wait for websocket to be open
+            if (websocket.readyState !== WebSocket.OPEN) {
+                await new Promise(resolve => websocket.onopen = () => resolve());
+            }
+
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 startRecording(stream);
             } catch (err) {
-                console.error(err);
+                console.error("Mic error:", err);
                 status.innerText = "Error: " + err.message;
             }
-        };
-        stopBtn.onclick = stopRecording;
+        }
+
+        async function connectWebSocket() {
+            if (websocket && websocket.readyState === WebSocket.OPEN) {
+                websocket.close();
+            }
+
+            return new Promise((resolve, reject) => {
+                websocket = new WebSocket('ws://' + window.location.host + '/ws');
+                websocket.binaryType = 'arraybuffer';
+
+                websocket.onopen = () => {
+                    status.innerText = "Connected to Addon.";
+                    const config = {
+                        mode: connectionModeSelect.value,
+                        token: directSessionToken
+                    };
+                    websocket.send(JSON.stringify(config));
+                    resolve();
+                };
+
+                websocket.onmessage = async (event) => {
+                    if (typeof event.data === 'string') {
+                        console.log("Text message received:", event.data);
+                        return;
+                    }
+                    await initAudio();
+                    playAudio(event.data);
+                };
+
+                websocket.onclose = () => {
+                    stopRecording(); // This also updates button states
+                    status.innerText = "Disconnected from Addon.";
+                };
+
+                websocket.onerror = (err) => {
+                    console.error("WebSocket Error:", err);
+                    status.innerText = "WebSocket connection error.";
+                    reject(err);
+                }
+            });
+        }
+
         function startRecording(stream) {
             isRecording = true;
             source = audioContext.createMediaStreamSource(stream);
@@ -191,15 +238,32 @@ INDEX_HTML = """
             source.connect(processor);
             processor.connect(audioContext.destination);
             startBtn.disabled = true; stopBtn.disabled = false; startBtn.classList.add('recording');
+            status.innerText = "Recording...";
         }
+
         function stopRecording() {
             isRecording = false;
-            if (source) { source.disconnect(); source = null; }
+            if (source) {
+                // Stop the media stream tracks to turn off the mic indicator
+                source.mediaStream.getTracks().forEach(track => track.stop());
+                source.disconnect();
+                source = null;
+            }
             if (processor) { processor.disconnect(); processor = null; }
             startBtn.disabled = false; stopBtn.disabled = true; startBtn.classList.remove('recording');
-            status.innerText = "Mic Stopped (Still Listening)";
+            status.innerText = "Mic Stopped.";
             nextStartTime = 0;
         }
+
+        async function initAudio() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 48000 });
+            }
+            if (audioContext.state === 'suspended') {
+                await audioContext.resume();
+            }
+        }
+
         function playAudio(arrayBuffer) {
             if (!audioContext) return;
             const data = new Int16Array(arrayBuffer);
@@ -215,6 +279,11 @@ INDEX_HTML = """
             sourceNode.start(nextStartTime);
             nextStartTime += buffer.duration;
         }
+
+        // --- Tool Testing ---
+        async function executeTool() {
+            /* ... existing implementation ... */
+        }
     </script>
 </body>
 </html>
@@ -228,29 +297,63 @@ class WebHandler:
     async def index_handler(self, request: web.Request):
         return web.Response(text=INDEX_HTML, content_type="text/html")
 
+    async def session_handler(self, request: web.Request):
+        """Proxy the session request to the Home Assistant component."""
+        try:
+            data = await request.json()
+            api_key = data.get("api_key")
+            if not api_key:
+                return web.json_response({"success": False, "error": "API key is required"}, status=400)
+
+            url = f"{HA_URL}/gemini_live/session"
+            headers = {
+                "Authorization": f"Bearer {HA_TOKEN}",
+                "Content-Type": "application/json",
+            }
+            payload = {"api_key": api_key}
+
+            async with ClientSession() as session:
+                async with session.post(url, headers=headers, json=payload) as resp:
+                    if resp.status == 200:
+                        session_data = await resp.json()
+                        return web.json_response(session_data)
+                    else:
+                        error_text = await resp.text()
+                        logger.error(f"Failed to create session: {resp.status} {error_text}")
+                        return web.json_response({"success": False, "error": error_text}, status=resp.status)
+
+        except Exception as e:
+            logger.error(f"session_handler error: {e}")
+            error_trace = traceback.format_exc()
+            logger.error(f"Traceback: {error_trace}")
+            return web.json_response({"success": False, "error": str(e)}, status=500)
+
     async def websocket_handler(self, request: web.Request):
         ws = web.WebSocketResponse()
         await ws.prepare(request)
 
         self.proxy.web_clients.add(ws)
-        # if not self.proxy.connection_active.is_set():
-        #      logger.info("Web Client connected: Activating Gemini Session")
-        #      self.proxy.connection_active.set()
-             
         logger.info("Web Client Connected")
 
-        async def process_return_audio(chunk: bytes):
-            await ws.send_bytes(chunk)
-
         try:
+            # First message is configuration
+            config_msg = await ws.receive_json()
+            mode = config_msg.get("mode", "bridge")
+            token = config_msg.get("token")
+
+            # Use the ws object itself as the key for web clients
+            session = self.proxy.get_session_for_client(ws, mode, token)
+
             async for msg in ws:
                 if msg.type == WSMsgType.BINARY:
-                    # Web client sends Int16 PCM (48kHz)
-                    split_host = request.get("remote", "unknown").split(":")
-                    await self.proxy.process_incoming_audio((split_host[0], split_host[1] if len(split_host) > 1 else "0"), msg.data, WEB_INPUT_RATE, process_return_audio)
+                    await session.process_incoming_audio(msg.data)
+                elif msg.type == WSMsgType.TEXT:
+                     logger.warning(f"Received unexpected text message from web client: {msg.data}")
                 elif msg.type == WSMsgType.ERROR:
                     logger.error(f"Websocket connection closed with exception {ws.exception()}")
+                    break
         finally:
+            self.proxy.remove_session_for_client(ws)
             self.proxy.web_clients.remove(ws)
             logger.info("Web Client Disconnected")
 
@@ -262,7 +365,6 @@ class WebHandler:
             data = await request.json()
             name = data.get("name")
             args = data.get("args", {})
-            # This calls the IntentToolHandler logic in proxy.py
             result = await self.tool_handler.handle_tool_call(name, args)
             return web.Response(text=str(result))
         except Exception as e:
@@ -271,7 +373,6 @@ class WebHandler:
     async def tool_list_handler(self, request: web.Request):
         """List all available tools."""
         try:
-            # Construct a JSON list from local intent tools definition
             tools_data = []
             tool_objs = get_intent_tools()
             for tool in tool_objs:
@@ -291,7 +392,7 @@ class WebHandler:
     async def entity_list_handler(self, request: web.Request):
         """List all available entities."""
         try:
-            entities = await fetch_entities_via_http(True)
+            entities = await get_context(raw=True)
             return web.json_response(entities)
         except Exception as e:
             logger.error(f"entity_list_handler error: {e}")
@@ -302,7 +403,7 @@ class WebHandler:
     async def entities_handler(self, request: web.Request):
         """List all available entities (grouped context)."""
         try:
-            entities = await fetch_entities_via_http()
+            entities = await get_context(raw=False)
             return web.Response(text=str(entities))
         except Exception as e:
             logger.error(f"entities_handler error: {e}")

@@ -1,6 +1,6 @@
 import datetime
 import traceback
-from device_context import generate_device_context, generate_grouped_device_context
+from .context import get_context
 from google.genai import types
 import logging
 import os
@@ -216,107 +216,7 @@ class ToolHandler:
             return await self.ha.call_service("media_player", "volume_down", {"name": args.get("name")})
 
     async def _handle_get_context(self, args):
-        states = await self.ha.get_states()
-
-        payload = args or {}
-
-        if "name" in payload:
-            name = payload.pop("name")
-            if "entity_id" not in payload:
-                # Try simple lookup
-                eid = self.ha.entities.get(name.lower())
-                if eid:
-                    payload["entity_id"] = eid
-                else:
-                    # Fallback: if name looks like an entity_id
-                    if "." in name:
-                        payload["entity_id"] = name
-                    else:
-                        logger.warning(f"Could not resolve entity name: {name}")
-
-        if "entity_id" in payload:
-            return await self.ha.get_state(payload["entity_id"])
-
-        summary = []
-        for s in states:
-            # Filter huge lists, maybe only include domains from context?
-            # For now, simplistic filtering:
-            # if s['domain'] in ['light', 'switch', 'media_player', 'sensor', 'weather', 'fan', 'lock', 'cover', 'climate']:
-            summary.append(f"{s['entity_id']}: {s['state']}")
-        return "\n".join(summary[:100]) # Limit to 100 to avoid token limits
-
-async def fetch_tools_via_http():
-    """Fetch tools from the custom component HTTP endpoint."""
-    url = f"{HA_URL}/gemini_live/tools" # This matches the view URL defined above (note: HA_URL usually ends in /api)
-    
-    # NOTE: HA_URL in your tools.py is "http://supervisor/core/api"
-    # The view registers at "/api/gemini_live/tools" relative to root.
-    # So the full URL is likely "http://supervisor/core/api/gemini_live/tools"
-    # We need to construct it carefully.
-    
-    # Correct URL construction for Supervisor API usage:
-    # full_url = "http://supervisor/core/api/gemini_live/tools"
-
-    headers = {
-        "Authorization": f"Bearer {HA_TOKEN}",
-        "Content-Type": "application/json",
-    }
-
-    try:
-        async with ClientSession() as session:
-            async with session.get(url, headers=headers) as resp:
-                if resp.status == 200:
-                    data = await resp.json()
-                    if data.get("success"):
-                        logger.info(f"Loaded {len(data['tools'])} tools from Home Assistant HTTP API")
-                        return data["tools"]
-                    else:
-                        logger.error(f"API Error: {data.get('error')}")
-                else:
-                    logger.error(f"Failed to fetch tools: {resp.status} {await resp.text()}")
-    except Exception as e:
-        logger.error(f"HTTP Request failed: {e}")
-
-    return [] # Return empty list on failure
-
-async def fetch_entities_via_http(raw=False):
-    """Fetch entities from the custom component HTTP endpoint."""
-    url = f"{HA_URL}/gemini_live/entities" # This matches the view URL defined above (note: HA_URL usually ends in /api)
-    
-    # NOTE: HA_URL in your entities.py is "http://supervisor/core/api"
-    # The view registers at "/api/gemini_live/entities" relative to root.
-    # So the full URL is likely "http://supervisor/core/api/gemini_live/entities"
-    # We need to construct it carefully.
-    
-    # Correct URL construction for Supervisor API usage:
-    # full_url = "http://supervisor/core/api/gemini_live/entities"
-
-    headers = {
-        "Authorization": f"Bearer {HA_TOKEN}",
-        # "Content-Type": "application/json",
-        "Content-Type": "text/plain",
-    }
-
-    try:
-        async with ClientSession() as session:
-            async with session.post(url, headers=headers) as resp:
-                if resp.status == 200:
-                    data = await resp.json()
-                    if data.get("success"):
-                        # logger.info(f"Loaded {len(data['entities'])} entities from Home Assistant HTTP API")
-                        return data if raw else generate_grouped_device_context(data)
-                        # return data["entities"]
-                        # return generate_grouped_device_context(data)
-                    else:
-                        logger.error(f"API Error: {data.get('error')}")
-                else:
-                    logger.error(f"Failed to fetch entities: {resp.status} {await resp.text()}")
-    except Exception as e:
-        logger.error(f"HTTP Request failed: {e}")
-        error_trace = traceback.format_exc()
-        logger.error(f"Traceback: {error_trace}")
-
-    return [] # Return empty list on failure
+        return await get_context()
 
 def get_tools():
     return [
