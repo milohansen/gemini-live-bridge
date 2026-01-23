@@ -70,7 +70,16 @@ INDEX_HTML = """
             <option value="HassLightSet">HassLightSet (Brightness/Color)</option>
             <option value="ProxyMediaControl">ProxyMediaControl (Play/Pause/Next)</option>
             <option value="ProxyControlVolume">ProxyControlVolume (Set/Increase/Decrease)</option>
-            <!-- ... other options ... -->
+            <option value="ProxySetMute">ProxySetMute</option>
+            <option value="HassMediaSearchAndPlay">HassMediaSearchAndPlay</option>
+            <option value="HassFanSetSpeed">HassFanSetSpeed</option>
+            <option value="HassStartTimer">HassStartTimer</option>
+            <option value="HassCancelTimer">HassCancelTimer</option>
+            <option value="ProxyAdjustTimer">ProxyAdjustTimer (Increase/Decrease)</option>
+            <option value="ProxyPauseResumeTimer">ProxyPauseResumeTimer</option>
+            <option value="HassBroadcast">HassBroadcast</option>
+            <option value="GetLiveContext">GetLiveContext</option>
+            <option value="HassIntentRaw">HassIntentRaw</option>
         </select>
         <br/>
         
