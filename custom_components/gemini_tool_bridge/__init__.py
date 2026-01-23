@@ -13,11 +13,15 @@ from homeassistant.helpers import http as http_helpers
 from homeassistant.helpers import llm
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 
+import datetime
+import google.generativeai as genai
+
 # from homeassistant.helpers import config_validation as cv
 # from homeassistant.components.google_generative_ai_conversation import conversation
 from homeassistant.components.homeassistant import (
     exposed_entities as ha_exposed_entities,
 )
+from .context import generate_context_from_ha, get_raw_entities
 
 from .const import DOMAIN
 
@@ -43,13 +47,82 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     # We check if it's already registered to avoid errors on reload
     tools_view = GeminiToolsView()
     entities_view = GeminiEntitiesView()
+    session_view = GeminiSessionView()
     try:
         hass.http.register_view(tools_view)
         hass.http.register_view(entities_view)
+        hass.http.register_view(session_view)
     except ValueError:
         pass  # Already registered
 
     return True
+
+
+class GeminiSessionView(http_helpers.HomeAssistantView):
+    """A view to create a session for direct connection."""
+
+    url = "/api/gemini_live/session"
+    name = "api:gemini_live:session"
+    requires_auth = True
+
+    async def post(self, request: Request):
+        """Handle POST requests to create a session."""
+        hass: HomeAssistant = request.app["hass"]
+        data = await request.json()
+        api_key = data.get("api_key")
+
+        if not api_key:
+            return self.json({"success": False, "error": "API key is required"}, status_code=400)
+
+        genai.configure(api_key=api_key)
+
+        _LOGGER.info("Received request for a new Gemini session")
+
+        try:
+            # 1. Generate context and tools
+            context = await generate_context_from_ha(hass)
+
+            tools_view = GeminiToolsView()
+            llm_context = tools_view._get_llm_context()
+            api = llm.AssistAPI(hass)
+            llm_api = await api.async_get_api_instance(llm_context)
+            tools = llm_api.tools
+
+            gemini_tools = []
+            for tool in tools:
+                tool_def = {
+                    "name": tool.name,
+                    "description": tool.description,
+                    "parameters": convert(
+                        tool.parameters, custom_serializer=llm_api.custom_serializer
+                    ),
+                }
+                gemini_tools.append(tool_def)
+
+            # 2. Create ephemeral token
+            now = datetime.datetime.now(tz=datetime.timezone.utc)
+            client = genai.Client(http_options={'api_version': 'v1alpha'})
+            token = client.auth_tokens.create(
+                config={
+                    'uses': 1,
+                    'expire_time': now + datetime.timedelta(minutes=30),
+                    'new_session_expire_time': now + datetime.timedelta(minutes=1),
+                    'http_options': {'api_version': 'v1alpha'},
+                }
+            )
+
+            return self.json({
+                "success": True,
+                "token": token.name,
+                "context": context,
+                "tools": gemini_tools,
+            })
+
+        except Exception as e:
+            _LOGGER.error(f"Error creating session: {e}")
+            error_trace = traceback.format_exc()
+            _LOGGER.error(f"Traceback: {error_trace}")
+            return self.json({"success": False, "error": str(e)})
 
 
 # 3. This is called when you remove the integration
@@ -172,95 +245,23 @@ class GeminiEntitiesView(http_helpers.HomeAssistantView):
     async def post(self, request: Request):
         """Handle POST requests to fetch entities."""
         hass: HomeAssistant = request.app["hass"]
-        # assistant = await request.text() or "conversation"
-
         _LOGGER.info("Received POST request for Gemini entities")
 
         try:
-            ent_reg = er.async_get(hass)
-            dev_reg = dr.async_get(hass)
+            raw_entities = await get_raw_entities(hass)
 
-            # await ent_reg.async_load()
-            # await dev_reg.async_load()
-
-            all_states = hass.states.async_all()
-            ee = ha_exposed_entities.ExposedEntities(hass)
-            await ee._async_load_data()
-            # ee._assistants
-            # ee.entities
-            # exposed_entities = llm._get_exposed_entities(hass, assistant)
-
-            # states = [state for state in all_states if ee.async_should_expose("conversation", state.entity_id)]
-
-            devices = {}
-            non_device_entities = []
-
-            for state in all_states:
-                if not ee.async_should_expose("conversation", state.entity_id):
-                    continue
-                entity_entry = ent_reg.async_get(state.entity_id)
-
-                # entity_dict = None
-                entity_dict = {
-                    "entity_id": state.entity_id,
-                    "state": state.state,
-                    "name": state.name,
-                    "friendly_name": state.attributes.get("friendly_name"),
-                    # "attributes": state.attributes,
-                }
-
-                if entity_entry:
-                    entity_dict = {**entity_entry.extended_dict, **entity_dict}
-                    # try:
-                    #     entity_dict = entity_entry.extended_dict
-                    # except Exception as e:
-                    #     _LOGGER.warning(
-                    #         f"Error getting extended_dict for entity {entity_entry.entity_id}: {e}"
-                    #     )
-                    # entity_dict.update(entity_entry.extended_dict)
-                    # entity_dict.update(
-                    #     {
-                    #         "area_id": entity_entry.area_id,
-                    #         "device_id": entity_entry.device_id,
-                    #         "original_name": entity_entry.original_name,
-                    #         "aliases": list(entity_entry.aliases),
-                    #         "platform": entity_entry.platform,
-                    #         "unique_id": entity_entry.unique_id,
-                    #         "labels": list(entity_entry.labels),
-                    #         "categories": list(entity_entry.categories),
-                    #         "capabilities": entity_entry.capabilities,
-                    #     }
-                    # )
-
-                if entity_entry and entity_entry.device_id:
-                    if entity_entry.device_id not in devices:
-                        devices[entity_entry.device_id] = {
-                            "device": None,
-                            "entities": [],
-                        }
-
-                    devices[entity_entry.device_id]["entities"].append(
-                        entity_dict or state
-                    )
-
-                    if devices[entity_entry.device_id]["device"] is None:
-                        # Look up the device in the Device Registry using the device_id
-                        device_entry = dev_reg.async_get(entity_entry.device_id)
-
-                        if device_entry:
-                            devices[device_entry.id]["device"] = device_entry.dict_repr
-                else:
-                    non_device_entities.append(entity_dict or state)
-
-            # _LOGGER.warning(f"Fetched {len(exposed_devices)} devices from LLM API for assistant '{assistant}'")
-
-            return self.json(
-                {
+            # Check content type to decide on response format
+            if request.content_type == "application/json":
+                # For the web UI, include the name map
+                return self.json({
                     "success": True,
-                    "devices": devices,
-                    "non_device_entities": non_device_entities,
-                }
-            )
+                    **raw_entities,
+                    "entity_name_map": entity_name_map
+                })
+            else:
+                # For the addon, generate the formatted context string
+                formatted_context = generate_grouped_device_context(raw_entities)
+                return web.Response(text=formatted_context, content_type="text/plain")
 
         except Exception as e:
             _LOGGER.error(f"Error fetching entities: {e}")

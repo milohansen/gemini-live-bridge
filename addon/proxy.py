@@ -47,30 +47,8 @@ class AudioProxy:
             try:
                 data, addr = await loop.sock_recvfrom(self.udp_sock, 4096)
 
-                async def process_return_audio(chunk: bytes):
-                    # Send back to specific ESP address
-                    target_addr = (addr[0], ESP_RESPONSE_PORT)
-
-                    max_size = 1024
-                    for i in range(0, len(chunk), max_size):
-                        sub_chunk = chunk[i : i + max_size]
-                        await loop.sock_sendto(self.udp_sock, sub_chunk, target_addr)
-
-                await self.process_incoming_audio(
-                    addr, data, ESP_INPUT_RATE, process_return_audio
-                )
-                # # Identify Session
-                # session = self.sessions.get(addr)
-
-                # # Create new session if missing
-                # if not session:
-                #     session = GeminiSession(addr, self)
-                #     self.sessions[addr] = session
-                #     # Run session in background
-                #     session.task = asyncio.create_task(session.run())
-
-                # # Dispatch Audio
-                # await session.process_incoming_audio(data, ESP_INPUT_RATE)
+                session = self.get_session_for_client(addr, "bridge")
+                await session.process_incoming_audio(data)
 
             except asyncio.CancelledError:
                 break
@@ -78,20 +56,43 @@ class AudioProxy:
                 logger.error(f"UDP Receive Error: {e}")
                 await asyncio.sleep(0.1)
 
-    async def process_incoming_audio(
-        self, addr, data, rate, process_return_audio: Callable[[bytes], Awaitable[None]]
-    ):
-        session = self.sessions.get(addr)
+    def get_session_for_client(self, client_addr, mode="bridge", token=None):
+        session = self.sessions.get(client_addr)
 
-        # Create new session if missing
         if not session or not session.running:
-            session = GeminiSession(addr, self, process_return_audio)
-            self.sessions[addr] = session
-            # Run session in background
+            logger.info(f"Creating new session for {client_addr} in '{mode}' mode")
+
+            async def process_return_audio(chunk: bytes):
+                # This logic is now part of the session, specific to client type
+                if isinstance(client_addr, tuple): # UDP client
+                    target_addr = (client_addr[0], ESP_RESPONSE_PORT)
+                    loop = asyncio.get_running_loop()
+                    max_size = 1024
+                    for i in range(0, len(chunk), max_size):
+                        sub_chunk = chunk[i : i + max_size]
+                        await loop.sock_sendto(self.udp_sock, sub_chunk, target_addr)
+                elif client_addr in self.web_clients: # Web client
+                    await client_addr.send_bytes(chunk)
+
+
+            session = GeminiSession(
+                client_addr,
+                self,
+                process_return_audio,
+                mode=mode,
+                token=token,
+                input_rate=ESP_INPUT_RATE if isinstance(client_addr, tuple) else WEB_INPUT_RATE
+            )
+            self.sessions[client_addr] = session
             session.task = asyncio.create_task(session.run())
 
-        # Dispatch Audio
-        await session.process_incoming_audio(data, rate)
+        return session
+
+    def remove_session_for_client(self, client_addr):
+        if client_addr in self.sessions:
+            logger.info(f"Removing session for {client_addr}")
+            session = self.sessions.pop(client_addr)
+            session.stop()
 
     async def cleanup_task(self):
         """Periodically removes stale sessions."""
@@ -122,12 +123,11 @@ class AudioProxy:
             [
                 web.get("/", self.web_handler.index_handler),
                 web.get("/ws", self.web_handler.websocket_handler),
-                web.post(
-                    "/tool", self.web_handler.tool_test_handler
-                ),  # Will need updates to work without global
+                web.post("/tool", self.web_handler.tool_test_handler),
                 web.get("/tools", self.web_handler.tool_list_handler),
                 web.get("/entities", self.web_handler.entity_list_handler),
                 web.post("/entities", self.web_handler.entities_handler),
+                web.post("/session", self.web_handler.session_handler),
             ]
         )
         runner = web.AppRunner(app)
