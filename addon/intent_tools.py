@@ -304,7 +304,7 @@ class IntentToolHandler:
         return "\n".join(summary)
 
 
-def get_intent_tools():
+def get_intent_tools() -> types.ToolListUnion:
     return [
         types.Tool(
             function_declarations=[
