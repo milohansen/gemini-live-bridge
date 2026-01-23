@@ -1,2 +1,5 @@
 get_token:
   description: Generate an authentication token for Gemini API access.
+
+get_config:
+  description: Retrieve the latest model configuration for Gemini.

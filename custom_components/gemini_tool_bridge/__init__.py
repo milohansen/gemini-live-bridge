@@ -7,7 +7,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.typing import ConfigType
 
 from .const import DOMAIN
-from .gemini import generate_token, get_gemini_client
+from .gemini import generate_config, generate_token, get_gemini_client
 from .views import GeminiConfigView, GeminiEntitiesView, GeminiSessionView, GeminiToolsView
 
 _LOGGER = logging.getLogger(__name__)
@@ -54,8 +54,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         return {
             "token": token.name
         }
-
     hass.services.async_register(DOMAIN, "get_token", get_token_action, supports_response=SupportsResponse.ONLY)
+
+    async def get_config_action(call: ServiceCall) -> ServiceResponse:
+        """Handle the service action call."""
+        config = await generate_config(hass)
+        return {
+            "config": config.model_dump()
+        }
+    hass.services.async_register(DOMAIN, "get_config", get_config_action, supports_response=SupportsResponse.ONLY)
 
     return True
 
