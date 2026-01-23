@@ -3,9 +3,11 @@ import traceback
 from aiohttp import web, WSMsgType
 
 # Use the entity fetcher from the original tools file
+from audio import WEB_INPUT_RATE
+# from proxy import AudioProxy
 from tools import fetch_entities_via_http
 # Import the new intent tools to list them in the UI
-from intent_tools import get_intent_tools
+from intent_tools import IntentToolHandler, get_intent_tools
 
 logger = logging.getLogger(__name__)
 
@@ -221,11 +223,12 @@ INDEX_HTML = """
 class WebHandler:
     def __init__(self, proxy):
         self.proxy = proxy
+        self.tool_handler = IntentToolHandler(self.proxy.ha_client)
 
-    async def index_handler(self, request):
+    async def index_handler(self, request: web.Request):
         return web.Response(text=INDEX_HTML, content_type="text/html")
 
-    async def websocket_handler(self, request):
+    async def websocket_handler(self, request: web.Request):
         ws = web.WebSocketResponse()
         await ws.prepare(request)
 
@@ -236,11 +239,15 @@ class WebHandler:
              
         logger.info("Web Client Connected")
 
+        async def process_return_audio(chunk: bytes):
+            await ws.send_bytes(chunk)
+
         try:
             async for msg in ws:
                 if msg.type == WSMsgType.BINARY:
                     # Web client sends Int16 PCM (48kHz)
-                    await self.proxy.process_incoming_audio(msg.data, self.proxy.WEB_INPUT_RATE)
+                    split_host = request.host.split(":")
+                    await self.proxy.process_incoming_audio((split_host[0], split_host[1] if len(split_host) > 1 else "0"), msg.data, WEB_INPUT_RATE, process_return_audio)
                 elif msg.type == WSMsgType.ERROR:
                     logger.error(f"Websocket connection closed with exception {ws.exception()}")
         finally:
@@ -249,19 +256,19 @@ class WebHandler:
 
         return ws
 
-    async def tool_test_handler(self, request):
+    async def tool_test_handler(self, request: web.Request):
         """Handle manual tool execution requests."""
         try:
             data = await request.json()
             name = data.get("name")
             args = data.get("args", {})
             # This calls the IntentToolHandler logic in proxy.py
-            result = await self.proxy.tool_handler.handle_tool_call(name, args)
+            result = await self.tool_handler.handle_tool_call(name, args)
             return web.Response(text=str(result))
         except Exception as e:
             return web.Response(text=f"Error: {e}", status=500)
         
-    async def tool_list_handler(self, request):
+    async def tool_list_handler(self, request: web.Request):
         """List all available tools."""
         try:
             # Construct a JSON list from local intent tools definition
@@ -281,7 +288,7 @@ class WebHandler:
             logger.error(f"tool_list_handler error: {e}")
             return web.Response(text=f"Error: {e}", status=500)
         
-    async def entity_list_handler(self, request):
+    async def entity_list_handler(self, request: web.Request):
         """List all available entities."""
         try:
             entities = await fetch_entities_via_http(True)
@@ -292,7 +299,7 @@ class WebHandler:
             logger.error(f"Traceback: {error_trace}")
             return web.Response(text=f"Error: {e}", status=500)
         
-    async def entities_handler(self, request):
+    async def entities_handler(self, request: web.Request):
         """List all available entities (grouped context)."""
         try:
             entities = await fetch_entities_via_http()

@@ -300,7 +300,8 @@ class IntentToolHandler:
         summary = []
         for s in states:
             summary.append(f"{s['entity_id']}: {s['state']}")
-        return "\n".join(summary[:100])
+        logger.info(f"GetLiveContext returning {len(summary)} states")
+        return "\n".join(summary)
 
 
 def get_intent_tools():
@@ -624,9 +625,9 @@ def get_intent_tools():
                     },
                 ),
                 # Helper / Info Tools
-                types.FunctionDeclaration(
-                    name="GetDateTime", description="Returns current date and time."
-                ),
+                # types.FunctionDeclaration(
+                #     name="GetDateTime", description="Returns current date and time."
+                # ),
                 types.FunctionDeclaration(
                     name="GetLiveContext",
                     description="Get real-time states (on/off, temp, etc) for answering status questions.",

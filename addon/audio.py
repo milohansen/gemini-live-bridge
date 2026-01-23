@@ -8,7 +8,7 @@ GEMINI_OUTPUT_RATE = 24000
 ESP_OUTPUT_RATE = 48000
 WEB_INPUT_RATE = 48000  # Standard browser mic rate (approx)
 
-def resample_audio(self, audio_data, src_rate, dst_rate):
+def resample_audio(audio_data, src_rate, dst_rate) -> bytes:
     if src_rate == dst_rate:
         return audio_data
 

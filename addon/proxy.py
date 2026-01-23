@@ -2,6 +2,7 @@ import asyncio
 import os
 import socket
 import time
+from typing import Awaitable, Callable
 from aiohttp import web
 
 from intent_tools import HomeAssistantClient
@@ -16,6 +17,7 @@ UDP_PORT = 7000
 ESP_RESPONSE_PORT = 7001
 SESSION_TIMEOUT_SECONDS = 60  # Close session if no audio from device for 60s
 
+
 # --- Main Proxy Class ---
 class AudioProxy:
     def __init__(self):
@@ -24,11 +26,13 @@ class AudioProxy:
         self.udp_sock.setblocking(False)
 
         self.ha_client = HomeAssistantClient()
-        self.web_handler = WebHandler(self) # Note: WebHandler needs updates to work with sessions
+        self.web_handler = WebHandler(
+            self
+        )  # Note: WebHandler needs updates to work with sessions
 
-        self.sessions = {} # Map: (ip, port) -> GeminiSession
+        self.sessions = {}  # Map: (ip, port) -> GeminiSession
         self.running = True
-        
+
         # Web clients are special, we might treat them as a specific "virtual" session later
         self.web_clients = set()
         self.WEB_INPUT_RATE = WEB_INPUT_RATE
@@ -42,24 +46,52 @@ class AudioProxy:
         while self.running:
             try:
                 data, addr = await loop.sock_recvfrom(self.udp_sock, 4096)
-                
-                # Identify Session
-                session = self.sessions.get(addr)
-                
-                # Create new session if missing
-                if not session:
-                    session = GeminiSession(addr, self)
-                    self.sessions[addr] = session
-                    # Run session in background
-                    session.task = asyncio.create_task(session.run())
-                
-                # Dispatch Audio
-                await session.process_incoming_audio(data, ESP_INPUT_RATE)
 
-            except asyncio.CancelledError: break
+                async def process_return_audio(chunk: bytes):
+                    # Send back to specific ESP address
+                    target_addr = (addr[0], ESP_RESPONSE_PORT)
+
+                    max_size = 1024
+                    for i in range(0, len(chunk), max_size):
+                        sub_chunk = chunk[i : i + max_size]
+                        await loop.sock_sendto(self.udp_sock, sub_chunk, target_addr)
+
+                await self.process_incoming_audio(
+                    addr, data, ESP_INPUT_RATE, process_return_audio
+                )
+                # # Identify Session
+                # session = self.sessions.get(addr)
+
+                # # Create new session if missing
+                # if not session:
+                #     session = GeminiSession(addr, self)
+                #     self.sessions[addr] = session
+                #     # Run session in background
+                #     session.task = asyncio.create_task(session.run())
+
+                # # Dispatch Audio
+                # await session.process_incoming_audio(data, ESP_INPUT_RATE)
+
+            except asyncio.CancelledError:
+                break
             except Exception as e:
                 logger.error(f"UDP Receive Error: {e}")
                 await asyncio.sleep(0.1)
+
+    async def process_incoming_audio(
+        self, addr, data, rate, process_return_audio: Callable[[bytes], Awaitable[None]]
+    ):
+        session = self.sessions.get(addr)
+
+        # Create new session if missing
+        if not session or not session.running:
+            session = GeminiSession(addr, self, process_return_audio)
+            self.sessions[addr] = session
+            # Run session in background
+            session.task = asyncio.create_task(session.run())
+
+        # Dispatch Audio
+        await session.process_incoming_audio(data, rate)
 
     async def cleanup_task(self):
         """Periodically removes stale sessions."""
@@ -72,32 +104,37 @@ class AudioProxy:
                 if now - sess.last_activity > SESSION_TIMEOUT_SECONDS:
                     logger.info(f"Session {sess.id} timed out.")
                     sess.running = False
-                    if sess.task: sess.task.cancel()
+                    if sess.task:
+                        sess.task.cancel()
                     # Removal happens in sess.run() finally block
 
     async def run(self):
         await self.ha_client.get_states()
-        
+
         tasks = [
             asyncio.create_task(self.udp_listener_task()),
-            asyncio.create_task(self.cleanup_task())
+            asyncio.create_task(self.cleanup_task()),
         ]
 
         # Web Interface Setup
         app = web.Application()
-        app.add_routes([
-            web.get("/", self.web_handler.index_handler),
-            web.get("/ws", self.web_handler.websocket_handler),
-            web.post("/tool", self.web_handler.tool_test_handler), # Will need updates to work without global
-            web.get("/tools", self.web_handler.tool_list_handler),
-            web.get("/entities", self.web_handler.entity_list_handler),
-            web.post("/entities", self.web_handler.entities_handler),
-        ])
+        app.add_routes(
+            [
+                web.get("/", self.web_handler.index_handler),
+                web.get("/ws", self.web_handler.websocket_handler),
+                web.post(
+                    "/tool", self.web_handler.tool_test_handler
+                ),  # Will need updates to work without global
+                web.get("/tools", self.web_handler.tool_list_handler),
+                web.get("/entities", self.web_handler.entity_list_handler),
+                web.post("/entities", self.web_handler.entities_handler),
+            ]
+        )
         runner = web.AppRunner(app)
         await runner.setup()
         site = web.TCPSite(runner, "0.0.0.0", UDP_PORT)
         await site.start()
-        
+
         logger.info(f"Web Interface available at http://{UDP_IP}:{UDP_PORT}")
 
         try:
@@ -107,17 +144,21 @@ class AudioProxy:
         except asyncio.CancelledError:
             pass
         finally:
-            for task in tasks: task.cancel()
+            for task in tasks:
+                task.cancel()
             await runner.cleanup()
+
 
 if __name__ == "__main__":
     if not GEMINI_API_KEY and os.path.exists("/data/options.json"):
         try:
             import json
+
             with open("/data/options.json", "r") as f:
                 options = json.load(f)
                 GEMINI_API_KEY = options.get("gemini_api_key")
-        except Exception: pass
+        except Exception:
+            pass
 
     if not GEMINI_API_KEY:
         logger.error("GEMINI_API_KEY not found.")

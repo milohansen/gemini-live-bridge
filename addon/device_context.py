@@ -15,8 +15,7 @@ logger = logging.getLogger(__name__)
 
 STATIC_DEVICE_CONTEXT_PREFIX = "Smart Home Device Context: An overview of the areas and the devices in this smart home:"
 DEVICE_CONTEXT_PREFIX_LINES = [
-    "Smart Home Device Context: An overview of the areas and the devices in this smart home:",
-    "You are running on My Display, located in the Office area.",
+    "You are running on My Display, located in the Office area of an apartment in Jamaica Plain, MA. Use this location for any location-based context like weather or time.",
     "",
     "Tool Notes: In the description of each tool, parameters are listed in square brackets [] to indicate possible slot combinations.",
     "For example, [name, area+name] means the tool can be used with either the 'name' parameter alone or the 'area' parameter with the 'name' parameter together, but will fail if area is used alone.",
@@ -25,6 +24,8 @@ DEVICE_CONTEXT_PREFIX_LINES = [
     "Entity Notes: The following lists group entities by their assigned Areas in Home Assistant.",
     "Each entity is represented with its User Friendly Name and Entity ID for tool usage.",
     "Entity names that start with their Area or Device names have been shortened for conciseness. (e.g., 'Living Room Lamp' is shown as 'Lamp' in the Living Room section.)",
+    "",
+    "Smart Home Device Context: An overview of the areas and the devices in this smart home:",
 ]
 
 
