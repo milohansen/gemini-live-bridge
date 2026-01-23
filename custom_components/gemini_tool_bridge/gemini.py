@@ -67,3 +67,14 @@ async def generate_token(client: genai.Client, hass: HomeAssistant) -> types.Aut
         error_trace = traceback.format_exc()
         _LOGGER.error(f"Traceback: {error_trace}")
         raise e
+
+
+def get_gemini_client(api_key: str) -> genai.Client:
+    """Create a Gemini client with the provided API key."""
+    client = genai.Client(
+        http_options={
+            "api_version": "v1alpha",
+        },
+        api_key=api_key,
+    )
+    return client

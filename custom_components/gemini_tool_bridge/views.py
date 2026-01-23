@@ -18,7 +18,7 @@ from .context import (
     entity_name_map,
 )
 from .const import DOMAIN
-from .gemini import generate_token
+from .gemini import generate_token, get_gemini_client
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -30,30 +30,22 @@ class GeminiSessionView(http_helpers.HomeAssistantView):
     name = "api:gemini_live:session"
     requires_auth = True
 
+    api_key: str
+
     def __init__(self, api_key: str) -> None:
         super().__init__()
-        self.gemini_client = genai.Client(
-            http_options={
-                "api_version": "v1alpha",
-            },
-            api_key=api_key,
-        )
+        self.api_key = api_key
 
     async def post(self, request: Request):
         """Handle POST requests to create a session."""
         hass: HomeAssistant = request.app["hass"]
         data = await request.json()
-        api_key = data.get("api_key")
+        api_key = data.get("api_key", self.api_key)
 
-        client = self.gemini_client
+        if not api_key:
+            raise ValueError("API key is required")
 
-        if api_key:
-            client = genai.Client(
-                http_options={
-                    "api_version": "v1alpha",
-                },
-                api_key=api_key,
-            )
+        client = get_gemini_client(api_key)
 
         _LOGGER.info("Received request for a new Gemini session")
 
