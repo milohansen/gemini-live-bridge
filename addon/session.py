@@ -29,21 +29,33 @@ if not GEMINI_API_KEY and os.path.exists("/data/options.json"):
 
 
 class GeminiSession:
-    def __init__(self, address, proxy_server, send_return_audio: Callable[[bytes], Awaitable[None]]):
-        self.address = address  # (IP, Port) tuple
+    def __init__(self, address, proxy_server, send_return_audio: Callable[[bytes], Awaitable[None]], mode="bridge", token=None, input_rate=ESP_INPUT_RATE):
+        self.address = address
         self.proxy = proxy_server
-        self.id = f"{address[0]}:{address[1]}"
-        logger.info(f"[{self.id}] Initializing Session for {address}")
-
         self.send_return_audio = send_return_audio
+        self.mode = mode
+        self.token = token
+        self.input_rate = input_rate
+
+        if isinstance(address, tuple):
+            self.id = f"{address[0]}:{address[1]}"
+        else:
+            self.id = str(address) # Safe for WS objects
+
+        logger.info(f"[{self.id}] Initializing Session for {address} in '{self.mode}' mode")
 
         self.audio_queue_mic = asyncio.Queue()
         self.audio_queue_speaker: asyncio.Queue[bytes] = asyncio.Queue()
         self.vad_buffer = bytearray()
         self.vad = VADWrapper()
 
+        api_key_to_use = self.token if self.mode == "direct" and self.token else GEMINI_API_KEY
+        if not api_key_to_use:
+            logger.error(f"[{self.id}] Session cannot start: No API key or token provided.")
+            raise ValueError("API key or token required.")
+
         self.client = genai.Client(
-            api_key=GEMINI_API_KEY, http_options={"api_version": "v1alpha"}
+            api_key=api_key_to_use, http_options={"api_version": "v1alpha"}
         )
         self.tool_handler = IntentToolHandler(self.proxy.ha_client)
 
@@ -55,15 +67,21 @@ class GeminiSession:
     def update_activity(self):
         self.last_activity = time.time()
 
-    async def process_incoming_audio(self, raw_audio, source_rate):
+    def stop(self):
+        """Stops the session and cancels its running task."""
+        self.running = False
+        if self.task:
+            self.task.cancel()
+
+    async def process_incoming_audio(self, raw_audio):
         self.update_activity()
 
         # 1. Resample
         audio_16k = (
             raw_audio
-            if source_rate == GEMINI_INPUT_RATE
+            if self.input_rate == GEMINI_INPUT_RATE
             else await asyncio.to_thread(
-                resample_audio, raw_audio, source_rate, GEMINI_INPUT_RATE
+                resample_audio, raw_audio, self.input_rate, GEMINI_INPUT_RATE
             )
         )
 
