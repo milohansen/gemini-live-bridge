@@ -6,9 +6,9 @@ from homeassistant.core import HomeAssistant, ServiceCall, ServiceResponse, Supp
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.typing import ConfigType
 
-from const import DOMAIN
+from .const import DOMAIN
 from .gemini import generate_token
-from views import GeminiEntitiesView, GeminiSessionView, GeminiToolsView
+from .views import GeminiEntitiesView, GeminiSessionView, GeminiToolsView
 
 _LOGGER = logging.getLogger(__name__)
 
