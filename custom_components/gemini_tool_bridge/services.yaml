@@ -1,0 +1,2 @@
+get_token:
+  description: Generate an authentication token for Gemini API access.
