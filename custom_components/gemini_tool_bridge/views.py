@@ -10,15 +10,13 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import http as http_helpers
 from homeassistant.helpers import llm
 
-import google.genai as genai
-
 from .context import (
     generate_grouped_device_context,
     get_raw_entities,
     entity_name_map,
 )
 from .const import DOMAIN
-from .gemini import generate_token, get_gemini_client
+from .gemini import generate_config, generate_token, get_gemini_client
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -68,6 +66,27 @@ class GeminiSessionView(http_helpers.HomeAssistantView):
             error_trace = traceback.format_exc()
             _LOGGER.error(f"Traceback: {error_trace}")
             return self.json({"success": False, "error": str(e)})
+
+
+class GeminiConfigView(http_helpers.HomeAssistantView):
+    """A simple view to expose HA's LLM config via HTTP."""
+
+    url = "/api/gemini_live/config"
+    name = "api:gemini_live:config"
+    requires_auth = True  # Requires the Supervisor Token or Long-Lived Token
+
+    async def get(self, request: Request):
+        """Handle GET requests to fetch config."""
+        hass = request.app["hass"]
+
+        _LOGGER.info("Received request for Gemini config")
+
+        try:
+            return self.json(await generate_config(hass))
+
+        except Exception as e:
+            _LOGGER.error(f"Error fetching config: {e}")
+            return self.json({"success": False, "error": str(e)}, status_code=500)
 
 
 class GeminiToolsView(http_helpers.HomeAssistantView):

@@ -21,6 +21,42 @@ async def generate_token(client: genai.Client, hass: HomeAssistant) -> types.Aut
     _LOGGER.info("Received request for a new Gemini session")
 
     try:
+        now = datetime.datetime.now(tz=datetime.timezone.utc)
+
+        token = client.auth_tokens.create(
+            config={
+                "uses": 10,
+                "expire_time": now + datetime.timedelta(hours=20),
+                "new_session_expire_time": now + datetime.timedelta(hours=1),
+                "http_options": {"api_version": "v1alpha"},
+                "live_connect_constraints": {
+                    "model": "gemini-2.5-flash-native-audio-preview-12-2025",
+                    "config": await generate_config(hass),
+                },
+            }
+        )
+        # token = client.auth_tokens.create(
+        #     uses=10,
+        #     expire_time=now + datetime.timedelta(hours=20),
+        #     new_session_expire_time=now + datetime.timedelta(hours=1),
+        #     http_options={"api_version": "v1alpha"},
+        #     live_connect_constraints={
+        #         "model": "gemini-2.5-flash-native-audio-preview-12-2025",
+        #         "config": config,
+        #     },
+        # )
+
+        return token
+
+    except Exception as e:
+        _LOGGER.error(f"Error creating session: {e}")
+        error_trace = traceback.format_exc()
+        _LOGGER.error(f"Traceback: {error_trace}")
+        raise e
+
+
+async def generate_config(hass: HomeAssistant) -> types.LiveConnectConfig:
+    try:
         # 1. Generate context and tools
         context = await generate_context_from_ha(hass)
         base_instruction = "You are a helpful and friendly AI assistant. Be concise."
@@ -45,25 +81,10 @@ async def generate_token(client: genai.Client, hass: HomeAssistant) -> types.Aut
             ),
         )
 
-        # 2. Create ephemeral token
-
-        now = datetime.datetime.now(tz=datetime.timezone.utc)
-
-        token = client.auth_tokens.create(
-            uses=10,
-            expire_time=now + datetime.timedelta(hours=20),
-            new_session_expire_time=now + datetime.timedelta(hours=1),
-            http_options={"api_version": "v1alpha"},
-            live_connect_constraints={
-                "model": "gemini-2.5-flash-native-audio-preview-12-2025",
-                "config": config,
-            },
-        )
-
-        return token
+        return config
 
     except Exception as e:
-        _LOGGER.error(f"Error creating session: {e}")
+        _LOGGER.error(f"Error creating config: {e}")
         error_trace = traceback.format_exc()
         _LOGGER.error(f"Traceback: {error_trace}")
         raise e

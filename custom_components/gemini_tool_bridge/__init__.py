@@ -8,7 +8,7 @@ from homeassistant.helpers.typing import ConfigType
 
 from .const import DOMAIN
 from .gemini import generate_token, get_gemini_client
-from .views import GeminiEntitiesView, GeminiSessionView, GeminiToolsView
+from .views import GeminiConfigView, GeminiEntitiesView, GeminiSessionView, GeminiToolsView
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -37,10 +37,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     # We check if it's already registered to avoid errors on reload
     tools_view = GeminiToolsView()
     entities_view = GeminiEntitiesView()
+    config_view = GeminiConfigView()
     session_view = GeminiSessionView(entry.data["api_key"])
     try:
         hass.http.register_view(tools_view)
         hass.http.register_view(entities_view)
+        hass.http.register_view(config_view)
         hass.http.register_view(session_view)
     except ValueError:
         pass  # Already registered
