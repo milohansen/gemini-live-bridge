@@ -35,16 +35,6 @@ async def generate_token(client: genai.Client, hass: HomeAssistant) -> types.Aut
                 },
             }
         )
-        # token = client.auth_tokens.create(
-        #     uses=10,
-        #     expire_time=now + datetime.timedelta(hours=20),
-        #     new_session_expire_time=now + datetime.timedelta(hours=1),
-        #     http_options={"api_version": "v1alpha"},
-        #     live_connect_constraints={
-        #         "model": "gemini-2.5-flash-native-audio-preview-12-2025",
-        #         "config": config,
-        #     },
-        # )
 
         return token
 

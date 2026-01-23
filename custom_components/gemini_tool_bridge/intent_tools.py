@@ -1,7 +1,7 @@
 from google.genai import types
 
 
-def get_intent_tools():
+def get_intent_tools() -> types.ToolListUnion:
     return [
         types.Tool(
             function_declarations=[
