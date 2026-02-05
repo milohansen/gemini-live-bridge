@@ -73,7 +73,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     async def get_config_action(call: ServiceCall) -> ServiceResponse:
         """Handle the service action call."""
         config = await generate_config(hass)
-        return {"config": config.model_dump()}
+        return {"config": config.model_dump(exclude_none=True)}
 
     hass.services.async_register(
         DOMAIN, "get_config", get_config_action, supports_response=SupportsResponse.ONLY
