@@ -19,8 +19,8 @@ DEVICE_CONTEXT_PREFIX_LINES = [
     "",
     "Entity Notes: The following lists group entities by their assigned Areas in Home Assistant.",
     "Each entity is represented with its User Friendly Name and Entity ID for tool usage.",
-    "Entity names that start with their Device name have been shortened. A '*' indicates this (e.g., 'Humidifier Temperature' is shown as '* Temperature' under Humidifier.)",
-    "The same process applies to entity names that start with their Area name have been shortened for conciseness. A '^' indicates this (e.g., 'Living Room Lamp' is shown as '^ Lamp' in the Living Room section.)",
+    "Entity names that start with their Device name have been shortened. A '*' indicates this (e.g., 'Humidifier Temperature' is shown as '*Temperature' under Humidifier.)",
+    "The same process applies to entity names that start with their Area name have been shortened for conciseness. A '^' indicates this (e.g., 'Living Room Lamp' is shown as '^Lamp' in the Living Room section.)",
     "",
     "Smart Home Device Context: An overview of the areas and the devices in this smart home:",
 ]
@@ -49,6 +49,8 @@ def format_entity_name(entity, device_name=None, area_name=None):
         short_name = re.sub(r"^[:\-\s]+", "", short_name)
         if short_name:
             name = "*" + short_name
+        else:
+            name = "*"
 
     return name
 
