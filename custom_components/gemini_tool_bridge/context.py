@@ -40,9 +40,9 @@ def format_entity_name(entity, device_name=None, area_name=None):
         or entity.get("original_name")
         or eid.split(".")[1].replace("_", " ")
     )
-    name = friendly_name
+    entity_name_map[eid] = friendly_name
 
-    entity_name_map[eid] = name
+    name = truncate_name_for_area(friendly_name, area_name)
 
     if device_name and name.lower().startswith(device_name.lower()):
         short_name = name[len(device_name) :].strip()
@@ -50,15 +50,9 @@ def format_entity_name(entity, device_name=None, area_name=None):
         if short_name:
             name = "*" + short_name
 
-    if area_name and name.lower().startswith(area_name.replace("_", " ").lower()):
-        short_name = name[len(area_name) :].strip()
-        short_name = re.sub(r"^[:\-\s]+", "", short_name)
-        if short_name:
-            name = "^" + short_name
-
     return name
 
-def format_device_name(device_name: str, area_name=None):
+def truncate_name_for_area(device_name: str, area_name=None):
     """
     Helper to get a cleaned up entity name.
     Strips device and area names from the start if present.
@@ -66,7 +60,10 @@ def format_device_name(device_name: str, area_name=None):
 
     name = device_name
 
-    if area_name and name.lower().startswith(area_name.replace("_", " ").lower()):
+    if not area_name:
+        return name
+
+    if name.lower().startswith(area_name.replace("_", " ").lower()):
         short_name = name[len(area_name) :].strip()
         short_name = re.sub(r"^[:\-\s]+", "", short_name)
         if short_name:
@@ -107,7 +104,8 @@ def generate_grouped_device_context(data):
             entity_strings = []
             for entity in entities:
                 eid = entity.get("entity_id")
-                label = format_entity_name(entity, device_name, area)
+                truncated_device_name = truncate_name_for_area(device_name, area)
+                label = format_entity_name(entity, truncated_device_name, area)
                 entity_strings.append(f"{label} ({eid})")
 
             # if len(entity_strings) == 1:
@@ -117,7 +115,7 @@ def generate_grouped_device_context(data):
             #         entry = f"- {device_name}: {entity_strings[0]}"
             # else:
 
-            entry = f"- {format_device_name(device_name, area)}: {', '.join(entity_strings)}"
+            entry = f"- {truncated_device_name}: {', '.join(entity_strings)}"
 
             add_to_map(area, entry)
 
