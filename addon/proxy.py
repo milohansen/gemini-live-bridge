@@ -2,7 +2,6 @@ import asyncio
 import os
 import socket
 import time
-from typing import Awaitable, Callable
 from aiohttp import web
 
 from intent_tools import HomeAssistantClient
