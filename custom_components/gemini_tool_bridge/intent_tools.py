@@ -126,7 +126,7 @@ def get_intent_tools() -> types.ToolListUnion:
                 ),
                 types.FunctionDeclaration(
                     name="ProxyControlVolume",
-                    description="Sets or adjusts the volume of a media player. [For mode 'set': NONE, name. For mode 'increase'/'decrease': NONE, area, name.]",
+                    description="Sets or adjusts the volume of a media player. For mode 'set': [NONE, name]. For mode 'increase'/'decrease': [NONE, area, name].",
                     parameters_json_schema={
                         "type": "OBJECT",
                         "properties": {
