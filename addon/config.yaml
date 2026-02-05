@@ -21,3 +21,8 @@ hassio_role: homeassistant
 
 homeassistant_api: true
 auth_api: true
+
+ingress: true
+ingress_port: 7000
+panel_icon: mdi:microphone
+panel_title: Gemini Live

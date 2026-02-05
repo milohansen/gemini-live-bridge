@@ -164,7 +164,7 @@
         // }
         status.innerText = "Requesting direct session...";
         try {
-          const response = await fetch("/session", {
+          const response = await fetch("./session", {
             method: "POST",
           });
 
@@ -217,7 +217,9 @@
         }
 
         return new Promise((resolve, reject) => {
-          websocket = new WebSocket("ws://" + window.location.host + "/ws");
+          const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+          const basePath = window.location.pathname.endsWith('/') ? window.location.pathname.slice(0, -1) : window.location.pathname;
+          websocket = new WebSocket(wsProtocol + "//" + window.location.host + basePath + "/ws");
           websocket.binaryType = "arraybuffer";
 
           websocket.onopen = () => {
@@ -339,7 +341,7 @@
             args = JSON.parse(argsStr);
           }
 
-          const response = await fetch("/tool", {
+          const response = await fetch("./tool", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ name: name, args: args }),
@@ -358,7 +360,7 @@
         output.innerText = "Loading...";
 
         try {
-          const response = await fetch("/config", {
+          const response = await fetch("./config", {
             method: "GET",
           });
 
