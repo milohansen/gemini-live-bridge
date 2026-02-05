@@ -9,6 +9,8 @@ from homeassistant.components.homeassistant import (
 )
 
 DEVICE_CONTEXT_PREFIX_LINES = [
+    # TODO: Update location details as appropriate for the deployment
+    "You are an AI assistant integrated with a Home Assistant smart home system.",
     "You are running on My Display, located in the Office area of an apartment in Jamaica Plain, MA. Use this location for any location-based context like weather or time.",
     "",
     "Tool Notes: In the description of each tool, parameters are listed in square brackets [] to indicate possible slot combinations.",
@@ -17,7 +19,8 @@ DEVICE_CONTEXT_PREFIX_LINES = [
     "",
     "Entity Notes: The following lists group entities by their assigned Areas in Home Assistant.",
     "Each entity is represented with its User Friendly Name and Entity ID for tool usage.",
-    "Entity names that start with their Area or Device names have been shortened for conciseness. (e.g., 'Living Room Lamp' is shown as 'Lamp' in the Living Room section.)",
+    "Entity names that start with their Device name have been shortened. A '*' indicates this (e.g., 'Humidifier Temperature' is shown as '* Temperature' under Humidifier.)",
+    "The same process applies to entity names that start with their Area name have been shortened for conciseness. A '^' indicates this (e.g., 'Living Room Lamp' is shown as '^ Lamp' in the Living Room section.)",
     "",
     "Smart Home Device Context: An overview of the areas and the devices in this smart home:",
 ]
@@ -45,13 +48,29 @@ def format_entity_name(entity, device_name=None, area_name=None):
         short_name = name[len(device_name) :].strip()
         short_name = re.sub(r"^[:\-\s]+", "", short_name)
         if short_name:
-            name = short_name
+            name = "*" + short_name
 
     if area_name and name.lower().startswith(area_name.replace("_", " ").lower()):
         short_name = name[len(area_name) :].strip()
         short_name = re.sub(r"^[:\-\s]+", "", short_name)
         if short_name:
-            name = short_name
+            name = "^" + short_name
+
+    return name
+
+def format_device_name(device_name: str, area_name=None):
+    """
+    Helper to get a cleaned up entity name.
+    Strips device and area names from the start if present.
+    """
+
+    name = device_name
+
+    if area_name and name.lower().startswith(area_name.replace("_", " ").lower()):
+        short_name = name[len(area_name) :].strip()
+        short_name = re.sub(r"^[:\-\s]+", "", short_name)
+        if short_name:
+            name = "^" + short_name
 
     return name
 
@@ -91,13 +110,14 @@ def generate_grouped_device_context(data):
                 label = format_entity_name(entity, device_name, area)
                 entity_strings.append(f"{label} ({eid})")
 
-            if len(entity_strings) == 1:
-                if entity_strings[0].startswith(device_name):
-                    entry = f"- {entity_strings[0]}"
-                else:
-                    entry = f"- {device_name}: {entity_strings[0]}"
-            else:
-                entry = f"- {device_name}: {', '.join(entity_strings)}"
+            # if len(entity_strings) == 1:
+            #     if entity_strings[0].startswith(device_name):
+            #         entry = f"- {entity_strings[0]}"
+            #     else:
+            #         entry = f"- {device_name}: {entity_strings[0]}"
+            # else:
+
+            entry = f"- {format_device_name(device_name, area)}: {', '.join(entity_strings)}"
 
             add_to_map(area, entry)
 

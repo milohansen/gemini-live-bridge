@@ -3,19 +3,27 @@
 import logging
 import traceback
 
+import voluptuous as vol
 from aiohttp.web import Request, Response
+from homeassistant.components.http.data_validator import RequestDataValidator
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers import (
+    config_validation as cv,
+)
+from homeassistant.helpers import (
+    http as http_helpers,
+)
+from homeassistant.helpers import (
+    llm,
+)
 from voluptuous_openapi import convert
 
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers import http as http_helpers
-from homeassistant.helpers import llm
-
+from .const import DOMAIN
 from .context import (
+    entity_name_map,
     generate_grouped_device_context,
     get_raw_entities,
-    entity_name_map,
 )
-from .const import DOMAIN
 from .gemini import generate_config, generate_token, get_gemini_client
 
 _LOGGER = logging.getLogger(__name__)
@@ -228,3 +236,62 @@ class GeminiEntitiesView(http_helpers.HomeAssistantView):
             error_trace = traceback.format_exc()
             _LOGGER.error(f"Traceback: {error_trace}")
             return self.json({"success": False, "error": str(e)})
+
+
+timer_start_schema = vol.Schema(
+    {
+        vol.Required("operation"): vol.Literal("start"),
+        vol.Required("data"): vol.Schema(
+            {
+                vol.Optional("device_id"): cv.string,
+                vol.Required("hours"): cv.positive_int,
+                vol.Required("minutes"): cv.positive_int,
+                vol.Required("seconds"): cv.positive_int,
+                vol.Optional("name"): cv.string,
+                vol.Optional("conversation_command"): cv.string,
+                # vol.Optional("conversation_agent_id"): cv.string,
+            }
+        ),
+    }
+)
+
+
+class CancelTimerView(http_helpers.HomeAssistantView):
+    """A simple view to expose HA's LLM tools via HTTP."""
+
+    url = "/api/gemini_live/cancel_timer"
+    name = "api:gemini_live:cancel_timer"
+    requires_auth = True  # Requires the Supervisor Token or Long-Lived Token
+
+    @RequestDataValidator(
+        vol.Schema(
+            {
+                vol.Required("timer_id"): cv.string,
+            }
+        )
+    )
+    async def post(self, request: Request, data: dict[str, str]):
+        """Handle POST requests to fetch entities."""
+        hass: HomeAssistant = request.app["hass"]
+        _LOGGER.info("Received POST request for Gemini entities")
+
+        timer_manager = hass.data["intent.timer"]
+
+        try:
+            timer_id = data["timer_id"]
+            operation = "cancel_timer"
+
+            timer_manager.cancel_timer(timer_id)
+
+            return self.json({"success": True, "timer_id": timer_id})
+
+        except Exception as e:
+            _LOGGER.error(f"Error doing {operation}: {e}")
+            error_trace = traceback.format_exc()
+            _LOGGER.error(f"Traceback: {error_trace}")
+            return self.json({"success": False, "error": str(e)}, status_code=500)
+
+def cancel_timer(hass: HomeAssistant, timer_id: str):
+    """Cancel a timer by its ID."""
+    timer_manager = hass.data["intent.timer"]
+    timer_manager.cancel_timer(timer_id)

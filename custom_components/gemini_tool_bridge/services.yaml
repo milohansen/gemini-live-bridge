@@ -3,3 +3,11 @@ get_token:
 
 get_config:
   description: Retrieve the latest model configuration for Gemini.
+
+cancel_timer:
+  description: Cancel a running timer in Home Assistant.
+  fields:
+    timer_id:
+      description: The ID of the timer to cancel.
+      example: "timer_12345"
+      required: true
