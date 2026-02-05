@@ -98,6 +98,8 @@ class WebHandler:
         self.proxy.web_clients.add(ws)
         logger.info("Web Client Connected")
 
+        session = None  # Track the session for this connection
+        
         try:
             # First message is configuration
             config_msg = await ws.receive_json()
@@ -115,9 +117,22 @@ class WebHandler:
                 elif msg.type == WSMsgType.ERROR:
                     logger.error(f"Websocket connection closed with exception {ws.exception()}")
                     break
+                elif msg.type == WSMsgType.CLOSE:
+                    logger.info("WebSocket close message received")
+                    break
+        except Exception as e:
+            logger.error(f"WebSocket handler error: {e}")
         finally:
-            self.proxy.remove_session_for_client(ws)
-            self.proxy.web_clients.remove(ws)
+            # Clean up both the session and the web client reference
+            if session:
+                self.proxy.remove_session_for_client(ws)
+            if ws in self.proxy.web_clients:
+                self.proxy.web_clients.discard(ws)
+            
+            # Ensure WebSocket is closed
+            if not ws.closed:
+                await ws.close()
+                
             logger.info("Web Client Disconnected")
 
         return ws

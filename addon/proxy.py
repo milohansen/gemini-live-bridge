@@ -62,16 +62,26 @@ class AudioProxy:
             logger.info(f"Creating new session for {client_addr} in '{mode}' mode")
 
             async def process_return_audio(chunk: bytes):
-                # This logic is now part of the session, specific to client type
-                if isinstance(client_addr, tuple): # UDP client
-                    target_addr = (client_addr[0], ESP_RESPONSE_PORT)
-                    loop = asyncio.get_running_loop()
-                    max_size = 1024
-                    for i in range(0, len(chunk), max_size):
-                        sub_chunk = chunk[i : i + max_size]
-                        await loop.sock_sendto(self.udp_sock, sub_chunk, target_addr)
-                elif client_addr in self.web_clients: # Web client
-                    await client_addr.send_bytes(chunk)
+                try:
+                    # This logic is now part of the session, specific to client type
+                    if isinstance(client_addr, tuple): # UDP client
+                        target_addr = (client_addr[0], ESP_RESPONSE_PORT)
+                        loop = asyncio.get_running_loop()
+                        max_size = 1024
+                        for i in range(0, len(chunk), max_size):
+                            sub_chunk = chunk[i : i + max_size]
+                            await loop.sock_sendto(self.udp_sock, sub_chunk, target_addr)
+                    elif client_addr in self.web_clients: # Web client
+                        if not client_addr.closed:
+                            await client_addr.send_bytes(chunk)
+                        else:
+                            logger.warning(f"Attempted to send audio to closed WebSocket {client_addr}")
+                            # Trigger cleanup if WebSocket is closed
+                            self.remove_session_for_client(client_addr)
+                except Exception as e:
+                    logger.error(f"Error sending return audio: {e}")
+                    if not isinstance(client_addr, tuple):
+                        self.remove_session_for_client(client_addr)
 
 
             session = GeminiSession(
@@ -95,6 +105,10 @@ class AudioProxy:
             logger.info(f"Removing session for {client_addr}")
             session = self.sessions.pop(client_addr)
             session.stop()
+            
+            # If it's a web client, also remove from web_clients set
+            if client_addr in self.web_clients:
+                self.web_clients.discard(client_addr)
 
     async def cleanup_task(self):
         """Periodically removes stale sessions."""
