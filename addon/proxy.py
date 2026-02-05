@@ -85,6 +85,9 @@ class AudioProxy:
             )
             self.sessions[client_addr] = session
             session.task = asyncio.create_task(session.run())
+        else:
+            logger.debug(f"Using existing session for {client_addr}")
+            session.update_activity()
 
         return session
 
